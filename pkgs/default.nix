@@ -1,5 +1,6 @@
 { pkgs, ... }:
 {
+  azookey = pkgs.callPackage ./azookey { };
   claude = pkgs.callPackage ./claude { };
   fusuma = pkgs.callPackage ./fusuma { };
   google-japanese-ime = pkgs.callPackage ./google-japanese-ime { };
