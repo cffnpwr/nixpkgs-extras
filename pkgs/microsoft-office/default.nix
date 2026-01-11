@@ -1,10 +1,8 @@
 {
+  pkgs,
   lib,
   stdenvNoCC,
   fetchurl,
-  xar,
-  gzip,
-  cpio,
 }:
 
 let
@@ -15,17 +13,62 @@ let
     sha256 = "sha256-3NBXGkxkHoMcbbMxwTbspRR5ERnB/8MEA8EdeqrZ35U=";
   };
 
+  frameworks = import ./frameworks.nix;
+  proofingTools = import ./proofing-tools.nix;
+  fonts = import ./fonts.nix;
+
+  # Install helper script
+  # Copies only the specified resources from the package to the app bundle
+  # Arguments:
+  #   list: List of resource names to copy
+  #   $1: Source package directory
+  #   $2: Destination app path
+  #   $3: Source directory name within package (e.g., "Frameworks", "Proofing Tools", "DFonts")
+  #   $4: Destination subpath within Contents (e.g., "Frameworks", "SharedSupport/Proofing Tools", "Resources/DFonts")
+  mkCopyResources =
+    list:
+    pkgs.writeShellScript "copy-resources" ''
+      set -euo pipefail
+
+      srcPkg="$1"
+      appPath="$2"
+      srcDir="$3"
+      destPath="$4"
+
+      # Use ditto --clone on macOS 14.0+ to preserve signatures and metadata
+      # This mimics the official installer's behavior
+      ditto_cmd="/usr/bin/ditto"
+      if [[ "$(/usr/bin/sw_vers -productVersion | cut -d. -f1)" -ge 14 ]]; then
+        ditto_cmd="''${ditto_cmd} --clone"
+      fi
+
+      echo "Processing $srcDir..."
+      pushd "$srcPkg"
+      ${pkgs.gzip}/bin/zcat Payload | ${pkgs.cpio}/bin/cpio -id 2>/dev/null
+
+      # Copy only specified frameworks
+      mkdir -p "''${appPath}/Contents/''${destPath}"
+      ${lib.concatMapStringsSep "\n" (item: ''
+        $ditto_cmd "''${srcDir}/${item}" "''${appPath}/Contents/''${destPath}/${item}"
+        echo "Copied ''${srcDir}: ${item}"
+      '') list}
+      popd
+    '';
+
   mkOfficeApp =
     {
       pname,
       appName,
       pkgName,
+      frameworks ? [ ],
+      proofingTools ? [ ],
+      fonts ? [ ],
       meta,
     }:
     stdenvNoCC.mkDerivation {
       inherit pname version src;
 
-      nativeBuildInputs = [
+      nativeBuildInputs = with pkgs; [
         xar
         gzip
         cpio
@@ -40,11 +83,19 @@ let
 
         mkdir -p $out/Applications
 
+        # Use ditto --clone on macOS 14.0+ to preserve signatures and metadata
+        # This mimics the official installer's behavior
+        ditto_cmd="/usr/bin/ditto"
+        if [[ "$(/usr/bin/sw_vers -productVersion | cut -d. -f1)" -ge 14 ]]; then
+          ditto_cmd="/usr/bin/ditto --clone"
+        fi
+
         # Extract Main App
         if [ -d "${pkgName}" ]; then
           cd "${pkgName}"
-          ${gzip}/bin/zcat Payload | ${cpio}/bin/cpio -id 2>/dev/null
-          mv "${appName}" $out/Applications/
+          zcat Payload | cpio -id 2>/dev/null
+          # Use ditto instead of mv to preserve signatures
+          $ditto_cmd "${appName}" "$out/Applications/${appName}"
           cd ..
         else
           echo "Error: ${pkgName} not found"
@@ -53,62 +104,20 @@ let
 
         appPath="$out/Applications/${appName}"
 
-        # Helper function to extract and install components
-        install_component() {
-          local pkg_dir="$1"
-          local dest_dir="$2"
-          local pattern="$3"
-          
-          if [ -d "$pkg_dir" ]; then
-            echo "Processing $pkg_dir..."
-            cd "$pkg_dir"
-            # Extract payload silently
-            ${gzip}/bin/zcat Payload | ${cpio}/bin/cpio -id 2>/dev/null
-            
-            # Find and copy matching files/directories
-            mkdir -p "$dest_dir"
-            find . -name "$pattern" -print0 | while IFS= read -r -d "" file; do
-              cp -R "$file" "$dest_dir/"
-            done
-            
-            # Cleanup extracted files to save space for next steps
-            # (We only need to remove the extracted content, not the pkg itself yet)
-            # Actually, simpler to just cd back and let the temporary dir be cleaned up at the end
-            cd ..
-          fi
-        }
-
-        # Extract and inject Frameworks
-        # We look for any .framework directory inside the payload
-        install_component "Office_frameworks.pkg" "$appPath/Contents/Frameworks" "*.framework"
-        # Also need to copy dylibs if any are loose (like libmbupdx2009.dylib seen in previous lists)
-        if [ -d "Office_frameworks.pkg" ]; then
-           cd "Office_frameworks.pkg"
-           ${gzip}/bin/zcat Payload | ${cpio}/bin/cpio -id 2>/dev/null
-           find . -name "*.dylib" -print0 | while IFS= read -r -d "" file; do
-             cp "$file" "$appPath/Contents/Frameworks/"
-           done
-           cd ..
-        fi
-
-        # Extract and inject Proofing Tools
-        install_component "Office_proofing.pkg" "$appPath/Contents/SharedSupport/Proofing Tools" "*.proofingtool"
-
-        # Extract and inject Fonts
-        # Microsoft Office looks for fonts in Contents/Resources/DFonts
-        if [ -d "Office_fonts.pkg" ]; then
-          echo "Installing Fonts for ${appName}..."
-          cd "Office_fonts.pkg"
-          ${gzip}/bin/zcat Payload | ${cpio}/bin/cpio -id 2>/dev/null
-          
-          mkdir -p "$appPath/Contents/Resources/DFonts"
-          find . \( -name "*.ttf" -o -name "*.otf" -o -name "*.ttc" \) -print0 | while IFS= read -r -d "" file; do
-            cp "$file" "$appPath/Contents/Resources/DFonts/"
-          done
-          cd ..
-        fi
+        ${mkCopyResources frameworks} "Office_frameworks.pkg" "$appPath" "Frameworks" "Frameworks"
+        ${mkCopyResources proofingTools} "Office_proofing.pkg" "$appPath" "Proofing Tools" "SharedSupport/Proofing Tools"
+        ${mkCopyResources fonts} "Office_fonts.pkg" "$appPath" "DFonts" "Resources/DFonts"
 
         runHook postInstall
+      '';
+
+      installCheckPhase = ''
+        runHook preInstallCheck
+
+        # Verify that the app is correctly codesigned
+        /usr/bin/codesign -v "$out/Applications/${appName}"
+
+        runHook postInstallCheck
       '';
 
       dontFixup = true;
@@ -134,6 +143,9 @@ in
     pname = "microsoft-word";
     appName = "Microsoft Word.app";
     pkgName = "Microsoft_Word_Internal.pkg";
+    frameworks = frameworks.word;
+    proofingTools = proofingTools.word;
+    fonts = fonts.word;
     meta.description = "Microsoft Word";
   };
 
@@ -141,6 +153,9 @@ in
     pname = "microsoft-excel";
     appName = "Microsoft Excel.app";
     pkgName = "Microsoft_Excel_Internal.pkg";
+    frameworks = frameworks.excel;
+    proofingTools = proofingTools.excel;
+    fonts = fonts.excel;
     meta.description = "Microsoft Excel";
   };
 
@@ -148,6 +163,9 @@ in
     pname = "microsoft-powerpoint";
     appName = "Microsoft PowerPoint.app";
     pkgName = "Microsoft_PowerPoint_Internal.pkg";
+    frameworks = frameworks.powerpoint;
+    proofingTools = proofingTools.powerpoint;
+    fonts = fonts.powerpoint;
     meta.description = "Microsoft PowerPoint";
   };
 
@@ -155,6 +173,9 @@ in
     pname = "microsoft-outlook";
     appName = "Microsoft Outlook.app";
     pkgName = "Microsoft_Outlook_Internal.pkg";
+    frameworks = frameworks.outlook;
+    proofingTools = proofingTools.outlook;
+    fonts = fonts.outlook;
     meta.description = "Microsoft Outlook";
   };
 
@@ -162,6 +183,9 @@ in
     pname = "microsoft-onenote";
     appName = "Microsoft OneNote.app";
     pkgName = "Microsoft_OneNote_Internal.pkg";
+    frameworks = frameworks.onenote;
+    proofingTools = proofingTools.onenote;
+    fonts = fonts.onenote;
     meta.description = "Microsoft OneNote";
   };
 
