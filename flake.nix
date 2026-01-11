@@ -117,6 +117,7 @@
             import ./pkgs {
               pkgs = final;
             }
+            // (import ./pkgs/overlays.nix final prev)
             // {
               lib = prev.lib.extend (
                 _: _: {
