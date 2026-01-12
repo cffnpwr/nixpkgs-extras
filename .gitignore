@@ -3,3 +3,6 @@
 
 # Ignore git worktree directories
 .worktree
+
+# Ignore direnv directories
+.direnv/
