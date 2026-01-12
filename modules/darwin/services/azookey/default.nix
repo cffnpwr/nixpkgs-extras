@@ -6,7 +6,8 @@
 }:
 let
   cfg = config.services.azookey;
-in {
+in
+{
   options.services.azookey = {
     enable = lib.mkEnableOption "azooKey Japanese Input Method Service";
 
@@ -29,6 +30,23 @@ in {
       fi
     '';
   };
+
+  system.defaults.inputsources.AppleEnabledThirdPartyInputSources = [
+    {
+      "Bundle ID" = "dev.ensan.inputmethod.azooKeyMac";
+      InputSourceKind = "Keyboard Input Method";
+    }
+    {
+      "Bundle ID" = "dev.ensan.inputmethod.azooKeyMac";
+      "Input Mode" = "com.apple.inputmethod.Roman";
+      InputSourceKind = "Input Mode";
+    }
+    {
+      "Bundle ID" = "dev.ensan.inputmethod.azooKeyMac";
+      "Input Mode" = "com.apple.inputmethod.Japanese";
+      InputSourceKind = "Input Mode";
+    }
+  ];
 
   meta = with lib; {
     maintainers = with maintainers; [ cffnpwr ];
