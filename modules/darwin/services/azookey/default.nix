@@ -14,8 +14,8 @@ in
     package = lib.mkPackageOption pkgs "azookey" { };
   };
 
-  config = lib.mkIf (cfg.enable && pkgs.stdenv.isDarwin) {
-    system.activationScripts.extraActivation.text = ''
+  config.system = lib.mkIf (cfg.enable && pkgs.stdenv.isDarwin) {
+    activationScripts.extraActivation.text = ''
       OLD="/Library/Input Methods/azooKeyMac.app"
       NEW="${cfg.package}/Library/Input Methods/azooKeyMac.app"
 
@@ -29,24 +29,24 @@ in
         cp -R "$NEW" "$OLD"
       fi
     '';
-  };
 
-  system.defaults.inputsources.AppleEnabledThirdPartyInputSources = [
-    {
-      "Bundle ID" = "dev.ensan.inputmethod.azooKeyMac";
-      InputSourceKind = "Keyboard Input Method";
-    }
-    {
-      "Bundle ID" = "dev.ensan.inputmethod.azooKeyMac";
-      "Input Mode" = "com.apple.inputmethod.Roman";
-      InputSourceKind = "Input Mode";
-    }
-    {
-      "Bundle ID" = "dev.ensan.inputmethod.azooKeyMac";
-      "Input Mode" = "com.apple.inputmethod.Japanese";
-      InputSourceKind = "Input Mode";
-    }
-  ];
+    defaults.inputsources.AppleEnabledThirdPartyInputSources = [
+      {
+        "Bundle ID" = "dev.ensan.inputmethod.azooKeyMac";
+        InputSourceKind = "Keyboard Input Method";
+      }
+      {
+        "Bundle ID" = "dev.ensan.inputmethod.azooKeyMac";
+        "Input Mode" = "com.apple.inputmethod.Roman";
+        InputSourceKind = "Input Mode";
+      }
+      {
+        "Bundle ID" = "dev.ensan.inputmethod.azooKeyMac";
+        "Input Mode" = "com.apple.inputmethod.Japanese";
+        InputSourceKind = "Input Mode";
+      }
+    ];
+  };
 
   meta = with lib; {
     maintainers = with maintainers; [ cffnpwr ];
