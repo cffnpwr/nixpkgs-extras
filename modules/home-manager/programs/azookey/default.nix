@@ -20,7 +20,7 @@ let
   cfg = config.programs.azookey;
 
   # Import presets
-  presets = import ./presets.nix { inherit pkgs; };
+  presets = import ./presets.nix { inherit lib; };
 
   domain = "dev.ensan.inputmethod.azooKeyMac";
   prefixKey = key: "${domain}.preference.${key}";
@@ -30,7 +30,7 @@ let
     key: value:
     let
       fullKey = prefixKey key;
-      plistValue = generators.toPlist { } value;
+      plistValue = generators.toPlist { escape = true; } value;
     in
     "defaults write ${domain} ${escapeShellArg fullKey} ${escapeShellArg plistValue}";
 
@@ -93,7 +93,6 @@ in
     enable = mkEnableOption "azooKey Japanese Input Method configuration";
 
     settings = {
-      # Boolean settings
       enableLiveConversion = mkOption {
         type = types.nullOr types.bool;
         default = null;
@@ -118,7 +117,6 @@ in
         description = "Include context in AI transformation.";
       };
 
-      # String settings
       zenzaiProfile = mkOption {
         type = types.nullOr types.str;
         default = null;
@@ -139,7 +137,6 @@ in
         description = "OpenAI API endpoint.";
       };
 
-      # Enum settings
       punctuationStyle = mkOption {
         type = types.nullOr (
           types.enum [
@@ -261,7 +258,6 @@ in
       '';
     };
 
-    # Export presets for users to access
     presets = mkOption {
       type = types.anything;
       readOnly = true;
