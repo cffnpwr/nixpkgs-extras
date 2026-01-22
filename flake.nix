@@ -1,5 +1,5 @@
 {
-  description = "cffnpwr's personal nixpkgs";
+  description = "cffnpwr's nixpkgs-extras - custom packages not available in nixpkgs";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";

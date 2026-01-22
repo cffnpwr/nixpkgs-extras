@@ -1,7 +1,7 @@
 # Project Overview
 
 ## Purpose
-This is a personal Nixpkgs repository (`cffnpwr's personal nixpkgs`) that provides:
+This is nixpkgs-extras (`cffnpwr's nixpkgs-extras`) that provides custom packages not available in nixpkgs:
 - Custom packages (overlays)
 - Home Manager modules
 - nix-darwin modules
