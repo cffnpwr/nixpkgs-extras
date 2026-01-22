@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a personal Nixpkgs repository that provides custom packages, Home Manager modules, nix-darwin modules, and NixOS modules. The repository is structured as a Nix Flake.
+This is nixpkgs-extras, a repository that provides custom packages not available in nixpkgs, along with Home Manager modules, nix-darwin modules, and NixOS modules. The repository is structured as a Nix Flake.
 
 ## Flake Architecture
 
