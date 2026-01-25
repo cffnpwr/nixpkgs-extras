@@ -12,7 +12,6 @@ let
   fixMacAppTargets = [
     "aerospace"
     "discord"
-    "scroll-reverser"
     "spotify"
   ];
 
