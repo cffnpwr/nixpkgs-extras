@@ -30,7 +30,7 @@ stdenvNoCC.mkDerivation rec {
   '';
 
   # Skip fixup phase to preserve signature
-  skipFixup = true;
+  dontFixup = true;
 
   passthru.updateScript =
     let
