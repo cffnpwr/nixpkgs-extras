@@ -8,31 +8,17 @@
   pbzx,
   cpio,
 }:
-
 let
   pname = "teams";
   versions = {
-    darwin = "25275.2602.4021.9366";
+    darwin = "26004.403.4267.4118";
   };
   hashes = {
-    darwin = "sha256-Nb2K5ARNdVvqGdwIvCiVP0hAMuaJH4/u6KN8s3r9QEI=";
-  };
-  meta = with lib; {
-    description = "Microsoft Teams";
-    homepage = "https://teams.microsoft.com";
-    downloadPage = "https://teams.microsoft.com/downloads";
-    sourceProvenance = with sourceTypes; [ binaryNativeCode ];
-    license = licenses.unfree;
-    maintainers = with maintainers; [ tricktron ];
-    platforms = [
-      "x86_64-darwin"
-      "aarch64-darwin"
-    ];
-    mainProgram = "teams";
+    darwin = "sha256-BQXjmWehE8uqEo7aPAVSAU1eyoW1Y5D1GiZqeL8Fl3M=";
   };
 in
 stdenvNoCC.mkDerivation {
-  inherit pname meta;
+  inherit pname;
   version = versions.darwin;
 
   src = fetchurl {
@@ -68,4 +54,21 @@ stdenvNoCC.mkDerivation {
 
     runHook postInstall
   '';
+
+  meta = with lib; {
+    description = "Microsoft Teams";
+    homepage = "https://teams.microsoft.com";
+    downloadPage = "https://teams.microsoft.com/downloads";
+    sourceProvenance = with sourceTypes; [ binaryNativeCode ];
+    license = licenses.unfree;
+    maintainers = with maintainers; [
+      tricktron
+      cffnpwr
+    ];
+    platforms = [
+      "x86_64-darwin"
+      "aarch64-darwin"
+    ];
+    mainProgram = "teams";
+  };
 }
