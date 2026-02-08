@@ -1,163 +1,86 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
-## Repository Overview
+## Project Summary
 
-This is nixpkgs-extras, a repository that provides custom packages not available in nixpkgs, along with Home Manager modules, nix-darwin modules, and NixOS modules. The repository is structured as a Nix Flake.
+Custom Nix packages and modules not available in nixpkgs. Provides **Home Manager**, **nix-darwin**, and **NixOS** modules as a Nix Flake.
 
-## Flake Architecture
+**Supported Systems**: x86_64-linux, aarch64-linux, x86_64-darwin, aarch64-darwin
 
-The flake exports several types of outputs:
-- **overlays.default**: Package overlays that extend nixpkgs
-- **homeModules**: Modules for Home Manager configuration
-- **darwinModules**: Modules for nix-darwin configuration (macOS)
-- **nixosModules**: Modules for NixOS configuration
-- **packages**: Platform-specific packages for all supported systems
-- **formatter**: Uses nixfmt-rfc-style (RFC 166)
-- **devShells.default**: Development environment with git, nil, nixd, and nixfmt-rfc-style
+## Essential Commands
 
-### Supported Systems
-- x86_64-linux
-- aarch64-linux
-- x86_64-darwin
-- aarch64-darwin
-
-## Internal Library System
-
-The repository uses a custom internal library system (`internalLib`) defined in `lib/default.nix`:
-
-1. **modulesFromDir**: A function that recursively collects Nix modules from a directory
-   - Automatically imports `.nix` files and directories with `default.nix`
-   - Skips `default.nix` files in the root of the search
-   - Returns an attribute set of modules keyed by filename (without .nix extension)
-
-2. **internalLib**: Contains helper functions organized by program/module name
-   - Example: `internalLib.kmonad.mkHelpers pkgs` provides KMonad-specific helper functions
-   - These helpers are passed to modules via `_module.args.internalLib` in flake.nix
-
-3. **Library programs**: Located in `lib/programs/`, these provide:
-   - Helper functions (e.g., `mkHelpers`) for creating configuration files
-   - Option definitions (e.g., `mkKeyboardOptions`, `mkKmonadOptions`)
-   - Platform-specific logic encapsulation
-
-## Module Architecture
-
-Modules are organized by target system and category:
-
-```
-modules/
-├── home-manager/    # User-level configuration
-│   ├── programs/    # User programs (package + config)
-│   └── services/    # User services (daemons/agents)
-├── darwin/          # macOS system-level configuration
-│   ├── programs/
-│   └── services/
-└── nixos/           # Linux system-level configuration
-    ├── programs/
-    └── services/
-```
-
-### Module Pattern
-
-All modules receive `internalLib` as an argument via `_module.args`:
-
-```nix
-{ config, lib, pkgs, internalLib, ... }:
-
-let
-  cfg = config.<namespace>.<module-name>;
-  helpers = internalLib.<module-name>.mkHelpers pkgs;  # If applicable
-in
-{
-  options.<namespace>.<module-name> = {
-    enable = lib.mkEnableOption "<description>";
-    # ... more options
-  };
-
-  config = lib.mkIf cfg.enable {
-    # ... implementation
-  };
-}
-```
-
-### Complex Module Organization
-
-Complex modules (like claude-code) are split across multiple files:
-- `default.nix`: Main entry point with `imports` list
-- `settings.nix`, `files.nix`, etc.: Specific concerns
-- Each file defines a subset of options under the same namespace
-
-## Development Commands
-
-### Formatting
 ```bash
-# Format all Nix files (uses nixfmt-rfc-style)
-nix fmt
-
-# Format specific file
-nixfmt <file.nix>
+nix fmt                    # Format all Nix files
+nix build .#<package>      # Build a package
+nix flake check            # Verify flake structure
 ```
 
-### Building and Testing
-```bash
-# Enter development shell
-nix develop
+**Full command reference**: `.claude/docs/reference/commands.md`
 
-# Build a specific package
-nix build .#<package-name>
+## Task Navigation
 
-# Verify flake structure
-nix flake check
+### Creating Modules
+**Task**: Add new program or service module
 
-# Show flake outputs
-nix flake show
+-> Read: `.claude/docs/workflows/module-development.md`
 
-# Update flake inputs
-nix flake update
+### Cross-Platform Development
+**Task**: Handle platform-specific implementations
+
+-> Read: `.claude/docs/workflows/cross-platform.md`
+
+### Understanding Architecture
+**Task**: Learn internalLib, module patterns
+
+-> Read: `.claude/docs/reference/architecture.md`
+
+## Project Structure
+
+### Repository Layout
+
+```
+.
+├── flake.nix            # Flake configuration
+├── lib/                 # Internal library (internalLib)
+│   ├── default.nix      # modulesFromDir, internalLib definitions
+│   └── programs/        # Program-specific helpers
+├── modules/             # Nix modules
+│   ├── home-manager/    # User-level (programs/, services/)
+│   ├── darwin/          # macOS system-level
+│   └── nixos/           # Linux system-level
+├── pkgs/                # Custom packages
+└── .claude/             # Claude Code documentation
 ```
 
-### Platform-Specific Module Testing
-```bash
-# Test Home Manager module
-nix build .#homeConfigurations.<config>.activationPackage
+### Flake Outputs
 
-# Test nix-darwin module
-nix build .#darwinConfigurations.<config>.system
-
-# Test NixOS module
-nix build .#nixosConfigurations.<config>.config.system.build.toplevel
-```
+| Output | Description |
+|--------|-------------|
+| `overlays.default` | Package overlays |
+| `homeModules` | Home Manager modules |
+| `darwinModules` | nix-darwin modules |
+| `nixosModules` | NixOS modules |
+| `packages` | Platform-specific packages |
 
 ## Coding Conventions
 
 ### Naming
-- Options: camelCase (e.g., `enable`, `extraArgs`)
-- Variables: camelCase (e.g., `cfg`, `helpers`)
-- Files: kebab-case (e.g., `karabiner-dk.nix`)
-- Functions: camelCase (e.g., `mkHelpers`, `mkConfigFile`)
 
-### Platform-Specific Code
-Use `pkgs.stdenv.isDarwin` and `pkgs.stdenv.isLinux` for platform checks. Provide platform-specific implementations using `lib.mkMerge` or conditional logic within the module.
+- **Options/Variables**: camelCase (`enable`, `extraArgs`, `cfg`)
+- **Files**: kebab-case (`karabiner-dk.nix`)
+- **Functions**: camelCase (`mkHelpers`, `mkConfigFile`)
 
-### Cross-Platform Device Configuration
-For device paths that differ between platforms, use a submodule pattern:
+### Platform Detection
+
 ```nix
-device = lib.mkOption {
-  type = lib.types.either lib.types.str (
-    lib.types.submodule {
-      options = {
-        linux = lib.mkOption { ... };
-        darwin = lib.mkOption { ... };
-      };
-    }
-  );
-};
+pkgs.stdenv.isDarwin  # macOS
+pkgs.stdenv.isLinux   # Linux
 ```
 
 ## EditorConfig
-The repository has `.editorconfig` with:
-- Indentation: 2 spaces (except Go files which use tabs)
+
+- Indentation: 2 spaces
 - Charset: utf-8
 - End of line: lf
 - Trim trailing whitespace: true
