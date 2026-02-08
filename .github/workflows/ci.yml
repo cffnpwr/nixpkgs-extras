@@ -66,11 +66,64 @@ jobs:
         run: |
           nix search .#legacyPackages '^'
 
+  detect-changes:
+    name: Detect Changed Packages
+    runs-on: ubuntu-24.04
+    outputs:
+      build_all: ${{ steps.detect.outputs.build_all }}
+      changed_packages: ${{ steps.detect.outputs.changed_packages }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes
+        id: detect
+        run: |
+          # Build all packages on push to main
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "build_all=true" >> $GITHUB_OUTPUT
+            echo "changed_packages=[]" >> $GITHUB_OUTPUT
+            echo "Push to main detected, building all packages"
+            exit 0
+          fi
+
+          # Get changed files compared to main
+          changed_files=$(git diff --name-only origin/main...HEAD)
+          echo "Changed files:"
+          echo "$changed_files"
+
+          # Check if flake.nix or flake.lock changed
+          if echo "$changed_files" | grep -qE '^flake\.(nix|lock)$'; then
+            echo "build_all=true" >> $GITHUB_OUTPUT
+            echo "changed_packages=[]" >> $GITHUB_OUTPUT
+            echo "flake.nix or flake.lock changed, building all packages"
+            exit 0
+          fi
+
+          # Extract changed package names from pkgs/<package-name>/
+          changed_packages=$(echo "$changed_files" | grep -oE '^pkgs/[^/]+/' | sed 's|pkgs/||; s|/$||' | grep -v '^overlays$' | sort -u)
+
+          if [[ -z "$changed_packages" ]]; then
+            echo "build_all=false" >> $GITHUB_OUTPUT
+            echo "changed_packages=[]" >> $GITHUB_OUTPUT
+            echo "No package changes detected"
+          else
+            # Convert to JSON array
+            json_array=$(echo "$changed_packages" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "build_all=false" >> $GITHUB_OUTPUT
+            echo "changed_packages=$json_array" >> $GITHUB_OUTPUT
+            echo "Changed packages: $json_array"
+          fi
+
   generate-matrix:
     name: Generate Build Matrix
+    needs: detect-changes
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_packages: ${{ steps.set-matrix.outputs.has_packages }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -85,12 +138,41 @@ jobs:
       - name: Generate matrix
         id: set-matrix
         run: |
-          matrix=$(nix run .#generate-github-actions-matrix)
+          # Get full matrix from Nix
+          full_matrix=$(nix run .#generate-github-actions-matrix)
+
+          build_all="${{ needs.detect-changes.outputs.build_all }}"
+          changed_packages='${{ needs.detect-changes.outputs.changed_packages }}'
+
+          if [[ "$build_all" == "true" ]]; then
+            echo "Building all packages"
+            matrix="$full_matrix"
+          else
+            echo "Filtering to changed packages: $changed_packages"
+            # Filter matrix to only include changed packages
+            # For packages like microsoft-office.excel, check if microsoft-office is in changed_packages
+            matrix=$(echo "$full_matrix" | jq -c --argjson changed "$changed_packages" '
+              .include |= map(
+                select(
+                  .package as $pkg |
+                  $changed | any(. as $c |
+                    $pkg == $c or ($pkg | startswith($c + "."))
+                  )
+                )
+              )
+            ')
+          fi
+
+          # Check if matrix has any packages
+          has_packages=$(echo "$matrix" | jq '.include | length > 0')
+          echo "has_packages=$has_packages" >> $GITHUB_OUTPUT
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "Matrix: $matrix"
 
   build-packages:
     name: Build ${{ matrix.package }} (${{ matrix.system }})
     needs: generate-matrix
+    if: needs.generate-matrix.outputs.has_packages == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -112,7 +194,18 @@ jobs:
 
   check-build-check-successed:
     name: Check build check successed
-    needs: build-packages
+    needs: [generate-matrix, build-packages]
+    if: always()
     runs-on: ubuntu-24.04
     steps:
-      - run: echo "All builds in build-packages job completed."
+      - name: Check results
+        run: |
+          if [[ "${{ needs.generate-matrix.outputs.has_packages }}" != "true" ]]; then
+            echo "No packages to build, skipping check"
+            exit 0
+          fi
+          if [[ "${{ needs.build-packages.result }}" != "success" ]]; then
+            echo "Build packages failed"
+            exit 1
+          fi
+          echo "All builds in build-packages job completed."
