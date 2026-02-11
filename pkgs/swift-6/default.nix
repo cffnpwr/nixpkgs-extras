@@ -1,9 +1,19 @@
 {
   lib,
   stdenvNoCC,
+  coreutils,
+  gnugrep,
   swift-6-source,
 }:
 
+let
+  swiftOs = "macosx";
+  swiftArch = stdenvNoCC.hostPlatform.darwinArch;
+  swiftModuleSubdir = "lib/swift/${swiftOs}";
+  swiftLibSubdir = "lib/swift/${swiftOs}";
+  swiftStaticModuleSubdir = "lib/swift_static/${swiftOs}";
+  swiftStaticLibSubdir = "lib/swift_static/${swiftOs}";
+in
 stdenvNoCC.mkDerivation {
   pname = "swift-6";
   inherit (swift-6-source) version;
@@ -29,7 +39,10 @@ stdenvNoCC.mkDerivation {
       swift-build-sdk-interfaces \
       swift-cache-tool \
       swift-stdlib-tool \
-      swift-symbolgraph-extract
+      swift-symbolgraph-extract \
+      clang \
+      clang++ \
+      clang-17
     do
       cp -a "${swift-6-source}/bin/$bin" "$out/bin/"
     done
@@ -42,8 +55,26 @@ stdenvNoCC.mkDerivation {
 
   dontFixup = true;
 
+  passthru = {
+    inherit
+      swiftOs
+      swiftArch
+      swiftModuleSubdir
+      swiftLibSubdir
+      swiftStaticModuleSubdir
+      swiftStaticLibSubdir
+      ;
+    _wrapperParams = {
+      coreutils_bin = lib.getBin coreutils;
+      gnugrep_bin = gnugrep;
+      suffixSalt = lib.replaceStrings [ "-" "." ] [ "_" "_" ] stdenvNoCC.targetPlatform.config;
+      use_response_file_by_default = 0;
+      swiftDriver = "";
+    };
+  };
+
   meta = with lib; {
-    description = "Swift programming language compiler";
+    description = "Swift programming language compiler (unwrapped)";
     homepage = "https://swift.org";
     license = licenses.asl20;
     platforms = platforms.darwin;
