@@ -60,6 +60,17 @@
           # Legacy packages (all packages from ./pkgs)
           legacyPackages = allPackages;
 
+          # Packages (derivations only; excludes attrset packages like microsoft-office)
+          # Also filter out packages not supported on the current system
+          packages = lib.filterAttrs (
+            _: drv:
+            lib.isDerivation drv
+            && (
+              !(drv ? meta.platforms)
+              || lib.meta.availableOn pkgs.stdenv.hostPlatform drv
+            )
+          ) allPackages;
+
           # Formatter
           formatter = pkgs.nixfmt-rfc-style;
 

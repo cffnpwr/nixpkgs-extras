@@ -6,11 +6,12 @@
 }:
 
 let
-  version = "16.102.25101223";
+  source = builtins.fromJSON (builtins.readFile ./source.json);
+  inherit (source) version;
 
   src = fetchurl {
     url = "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_365_and_Office_${version}_Installer.pkg";
-    sha256 = "sha256-3NBXGkxkHoMcbbMxwTbspRR5ERnB/8MEA8EdeqrZ35U=";
+    inherit (source) sha256;
   };
 
   frameworks = import ./frameworks.nix;

@@ -5,13 +5,16 @@
   _7zz,
 }:
 
-stdenvNoCC.mkDerivation rec {
+let
+  source = builtins.fromJSON (builtins.readFile ./source.json);
+in
+stdenvNoCC.mkDerivation {
   pname = "obsidian";
-  version = "1.10.6";
+  inherit (source) version;
 
   src = fetchurl {
-    url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v${version}/Obsidian-${version}.dmg";
-    sha256 = "sha256-p/vYc1PXgCkzoT49kPVcORFMQZrEjUWaNWvatzwSioo=";
+    url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v${source.version}/Obsidian-${source.version}.dmg";
+    inherit (source) sha256;
   };
 
   nativeBuildInputs = [ _7zz ];

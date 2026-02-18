@@ -8,14 +8,17 @@
   cpio,
 }:
 
+let
+  source = builtins.fromJSON (builtins.readFile ./source.json);
+in
 stdenvNoCC.mkDerivation {
   pname = "google-japanese-ime";
-  version = "3.33.6088";
+  inherit (source) version;
 
   src = fetchurl {
     url = "https://dl.google.com/japanese-ime/latest/GoogleJapaneseInput.dmg";
     # Google doesn't provide stable URLs with hashes, hash may change when updated
-    sha256 = "sha256-AEWOEuWBoc+OEuixLUIWzqtpHKAWSX9IZW/SX3uvuKk=";
+    inherit (source) sha256;
   };
 
   nativeBuildInputs = [

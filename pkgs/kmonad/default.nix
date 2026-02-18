@@ -5,11 +5,14 @@
   haskellPackages,
   writeShellScriptBin,
 }:
+
 let
+  source = builtins.fromJSON (builtins.readFile ./source.json);
+
   src = fetchgit {
     url = "https://github.com/kmonad/kmonad";
-    rev = "52050528a1e45b3732ff476d1de1bef72e637a23"; # master as of 2025-11-19
-    sha256 = "sha256-hV49aDcoQ13hycmvFwXFdw1pDWxcw6e+yDKy+5aT0D0=";
+    rev = source.rev;
+    sha256 = source.sha256;
     fetchSubmodules = true;
   };
 
@@ -19,7 +22,7 @@ let
 in
 haskellPackages.mkDerivation {
   pname = "kmonad";
-  version = "0.4.4.1-20251119";
+  inherit (source) version;
   inherit src;
 
   license = lib.licenses.mit;

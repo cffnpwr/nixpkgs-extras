@@ -64,12 +64,19 @@
 
       scriptType = builtins.typeOf updateScript;
     in
-    if scriptType == "set" then
+    if lib.isDerivation updateScript then
+      # Single derivation (e.g. writeShellScript result)
+      {
+        isValid = true;
+        errors = [ ];
+      }
+    else if scriptType == "set" then
+      # Attribute set with command field (nixpkgs updateScript attrset format)
       validateAttrSet updateScript
     else if scriptType == "list" then
       validateList updateScript
-    else if scriptType == "lambda" || scriptType == "string" then
-      # Assume it's a derivation (lambda when unevaluated, string when evaluated)
+    else if scriptType == "string" then
+      # Store path string
       {
         isValid = true;
         errors = [ ];
@@ -83,7 +90,9 @@
   # Parse updateScript into command list (handles attrset, list, or single derivation)
   parseUpdateScript =
     updateScript:
-    if lib.isAttrs updateScript && updateScript ? command then
+    if lib.isDerivation updateScript then
+      [ updateScript ]
+    else if lib.isAttrs updateScript && updateScript ? command then
       lib.toList updateScript.command
     else if lib.isList updateScript then
       updateScript
