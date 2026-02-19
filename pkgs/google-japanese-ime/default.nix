@@ -54,6 +54,8 @@ stdenvNoCC.mkDerivation {
   # Don't modify binaries to preserve Apple code signing
   dontFixup = true;
 
+  passthru.updateScript = ./update.py;
+
   meta = with lib; {
     description = "Google Japanese Input Method Editor";
     homepage = "https://www.google.co.jp/ime/";
