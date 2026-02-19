@@ -27,14 +27,46 @@ let
       gnused
     ];
 
-  allPkgNames = lib.attrNames allPackages;
-  pkgsWithUpdateScript = lib.filter (v: allPackages.${v} ? passthru.updateScript) allPkgNames;
+  # Flatten allPackages to include nested derivations from recurseIntoAttrs
+  # e.g. microsoft-office.word -> "microsoft-office/word"
+  flattenPackages =
+    prefix: attrs:
+    lib.concatMap (
+      name:
+      let
+        value = attrs.${name};
+        path = if prefix == "" then name else "${prefix}/${name}";
+      in
+      if lib.isDerivation value then
+        [
+          {
+            inherit path value;
+          }
+        ]
+      else if lib.isAttrs value && !(value ? type) then
+        flattenPackages path value
+      else
+        [ ]
+    ) (lib.attrNames attrs);
+
+  flatPkgs = flattenPackages "" allPackages;
+
+  # Resolve a "/"-separated path to the actual attribute in allPackages
+  resolvePkg =
+    path:
+    let
+      parts = lib.splitString "/" path;
+    in
+    lib.getAttrFromPath parts allPackages;
+
+  flatPkgPaths = map (x: x.path) flatPkgs;
+  pkgsWithUpdateScript = lib.filter (p: (resolvePkg p) ? passthru.updateScript) flatPkgPaths;
 
   # Collect validation results for all packages with updateScript
   validationResults = builtins.listToAttrs (
     map (pkg: {
       name = pkg;
-      value = validateUpdateScript pkg allPackages.${pkg}.passthru.updateScript;
+      value = validateUpdateScript pkg (resolvePkg pkg).passthru.updateScript;
     }) pkgsWithUpdateScript
   );
 
@@ -54,7 +86,7 @@ let
   getValidatedCmdList =
     pkg:
     let
-      updateScript = allPackages.${pkg}.passthru.updateScript;
+      updateScript = (resolvePkg pkg).passthru.updateScript;
       validationResult = validateUpdateScript pkg updateScript;
     in
     if !validationResult.isValid then
@@ -78,7 +110,7 @@ let
   mkCaseEntry =
     pkg:
     let
-      pkgInfo = allPackages.${pkg};
+      pkgInfo = resolvePkg pkg;
       updateCmd = getUpdateScriptCmd pkg;
     in
     lib.concatStringsSep "\n" [
