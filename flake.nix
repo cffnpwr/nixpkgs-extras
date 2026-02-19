@@ -86,7 +86,7 @@
             generate-github-actions-matrix = {
               type = "app";
               program = import ./scripts/generate-github-actions-matrix.nix {
-                inherit pkgs lib;
+                inherit pkgs lib allPackages;
                 flake = self;
               };
             };

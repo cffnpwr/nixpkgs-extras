@@ -2,12 +2,19 @@
   pkgs,
   lib,
   flake,
+  allPackages,
 }:
 let
+  scriptsLib = import ./lib.nix { inherit lib; };
+  inherit (scriptsLib) getUpdatablePackages;
+
+  updatablePkgPaths = getUpdatablePackages allPackages;
+
   systemToRunner = {
     "x86_64-linux" = "ubuntu-24.04";
     "aarch64-linux" = "ubuntu-24.04-arm";
-    "x86_64-darwin" = "macos-15-intel";
+    # Note: DeterminateNix does not support x86_64-darwin. Use aarch64-darwin runner with Rosetta 2.
+    "x86_64-darwin" = "macos-15";
     "aarch64-darwin" = "macos-15";
   };
 
@@ -23,8 +30,18 @@ let
         # check if value is a derivation
         if lib.isDerivation value then
           # Check if package is available on the target system
-          if lib.meta.availableOn { inherit system; } value then [ fullName ] else [ ]
-        # recurseForDerivations属性を持つ場合は再帰
+          if lib.meta.availableOn { inherit system; } value then
+            [
+              {
+                inherit system;
+                package = fullName;
+                os = systemToRunner.${system} or null;
+                updatable = lib.elem (lib.replaceStrings [ "." ] [ "/" ] fullName) updatablePkgPaths;
+              }
+            ]
+          else
+            [ ]
+        # if value is an attrset with recurseForDerivations, recurse into it
         else if lib.isAttrs value && (value.recurseForDerivations or false) then
           collectPackagesRecursive system fullName value
         else
@@ -35,17 +52,8 @@ let
   # collect packages across all systems in flake.legacyPackages
   collectPackages =
     let
-      # convert to list of { system, package, os } from legacyPackages
       systemPackages = lib.mapAttrsToList (
-        system: packages:
-        let
-          packageNames = collectPackagesRecursive system "" packages;
-        in
-        map (name: {
-          inherit system;
-          package = name;
-          os = systemToRunner.${system} or null;
-        }) packageNames
+        system: packages: collectPackagesRecursive system "" packages
       ) flake.legacyPackages;
     in
     # flatten and filter out packages without os

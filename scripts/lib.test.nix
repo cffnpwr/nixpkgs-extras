@@ -1,10 +1,41 @@
 { lib }:
 let
   scriptsLib = import ./lib.nix { inherit lib; };
-  inherit (scriptsLib) validateUpdateScript parseUpdateScript;
+  inherit (scriptsLib)
+    validateUpdateScript
+    parseUpdateScript
+    flattenPackages
+    resolvePkg
+    getUpdatablePackages
+    ;
 
   # Mock derivation (as a string to simulate evaluated derivation)
   mockDrv = "/nix/store/xxx-update-script";
+
+  # Minimal mock derivation attrset (lib.isDerivation checks for type = "derivation")
+  mkMockDrv =
+    name:
+    {
+      type = "derivation";
+      inherit name;
+    }
+    // lib.optionalAttrs true {
+      pname = name;
+      version = "1.0";
+    };
+
+  # Mock packages for flattenPackages / resolvePkg / getUpdatablePackages tests
+  mockPackages = {
+    simple = (mkMockDrv "simple") // {
+      passthru.updateScript = mockDrv;
+    };
+    no-update = mkMockDrv "no-update";
+    nested = {
+      child = (mkMockDrv "child") // {
+        passthru.updateScript = mockDrv;
+      };
+    };
+  };
 in
 {
   # validateUpdateScript tests
@@ -201,6 +232,63 @@ in
     "parses lambda (unevaluated derivation) to list" = {
       expr = builtins.isList (parseUpdateScript (x: x));
       expected = true;
+    };
+  };
+
+  # flattenPackages tests
+  flattenPackages = {
+    "flattens top-level derivations" = {
+      expr = map (x: x.path) (flattenPackages "" mockPackages);
+      expected = [
+        "nested/child"
+        "no-update"
+        "simple"
+      ];
+    };
+
+    "flattens nested derivations with slash separator" = {
+      expr =
+        (builtins.head (lib.filter (x: x.path == "nested/child") (flattenPackages "" mockPackages))).path;
+      expected = "nested/child";
+    };
+
+    "skips non-derivation non-attrset values" = {
+      expr = map (x: x.path) (
+        flattenPackages "" {
+          num = 42;
+          drv = mkMockDrv "drv";
+        }
+      );
+      expected = [ "drv" ];
+    };
+  };
+
+  # resolvePkg tests
+  resolvePkg = {
+    "resolves top-level package" = {
+      expr = (resolvePkg mockPackages "simple").name;
+      expected = "simple";
+    };
+
+    "resolves nested package with slash path" = {
+      expr = (resolvePkg mockPackages "nested/child").name;
+      expected = "child";
+    };
+  };
+
+  # getUpdatablePackages tests
+  getUpdatablePackages = {
+    "returns only packages with valid updateScript" = {
+      expr = builtins.sort builtins.lessThan (getUpdatablePackages mockPackages);
+      expected = [
+        "nested/child"
+        "simple"
+      ];
+    };
+
+    "excludes packages without updateScript" = {
+      expr = builtins.elem "no-update" (getUpdatablePackages mockPackages);
+      expected = false;
     };
   };
 }

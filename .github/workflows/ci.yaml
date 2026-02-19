@@ -16,14 +16,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v31.8.4
+        uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
         with:
-          nix_path: nixpkgs=channel:nixpkgs-unstable
-          extra_nix_config: |
-            experimental-features = nix-command flakes
+          extra-conf: |
             sandbox = false
             ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
 
@@ -35,14 +33,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v31.8.4
-        with:
-          nix_path: nixpkgs=channel:nixpkgs-unstable
-          extra_nix_config: |
-            experimental-features = nix-command flakes
+        uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
 
       - name: Check formatting
         run: |
@@ -53,14 +47,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v31.8.4
-        with:
-          nix_path: nixpkgs=channel:nixpkgs-unstable
-          extra_nix_config: |
-            experimental-features = nix-command flakes
+        uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
 
       - name: List all packages
         run: |
@@ -74,7 +64,7 @@ jobs:
       changed_packages: ${{ steps.detect.outputs.changed_packages }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
@@ -126,14 +116,10 @@ jobs:
       has_packages: ${{ steps.set-matrix.outputs.has_packages }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v31.8.4
-        with:
-          nix_path: nixpkgs=channel:nixpkgs-unstable
-          extra_nix_config: |
-            experimental-features = nix-command flakes
+        uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
 
       - name: Generate matrix
         id: set-matrix
@@ -179,14 +165,14 @@ jobs:
       matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v31.8.4
+        uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
         with:
-          nix_path: nixpkgs=channel:nixpkgs-unstable
-          extra_nix_config: |
-            experimental-features = nix-command flakes
+          extra-conf: |
+            sandbox = false
+            ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
 
       - name: Build ${{ matrix.package }} for ${{ matrix.system }}
         run: |
@@ -194,7 +180,11 @@ jobs:
 
   check-build-check-successed:
     name: Check build check successed
-    needs: [generate-matrix, build-packages]
+    needs:
+      - flake-check
+      - format-check
+      - generate-matrix
+      - build-packages
     if: always()
     runs-on: ubuntu-24.04
     steps:
