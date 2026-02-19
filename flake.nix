@@ -65,14 +65,11 @@
           packages = lib.filterAttrs (
             _: drv:
             lib.isDerivation drv
-            && (
-              !(drv ? meta.platforms)
-              || lib.meta.availableOn pkgs.stdenv.hostPlatform drv
-            )
+            && (!(drv ? meta.platforms) || lib.meta.availableOn pkgs.stdenv.hostPlatform drv)
           ) allPackages;
 
           # Formatter
-          formatter = pkgs.nixfmt-rfc-style;
+          formatter = pkgs.nixfmt;
 
           # Development shell
           devShells.default = pkgs.mkShell {
@@ -80,7 +77,7 @@
               git
               nil
               nixd
-              nixfmt-rfc-style
+              nixfmt
             ];
           };
 
