@@ -1,10 +1,8 @@
-#! /usr/bin/env nix-shell
-#! nix-shell -i python3 -p "python3" "_7zz" "xar.lib"
 """Update script for google-japanese-ime package.
 
-Extracts the version from the DMG's embedded PackageInfo using 7zz (to unpack
-the DMG) and libxar (via ctypes), then updates source.json with the new
-version and sha256.
+Extracts the version from the DMG's embedded PackageInfo using pybit7z (to
+unpack the DMG) and libxar (via ctypes), then updates source.json with the
+new version and sha256.
 
 Works on any platform (no hdiutil/macOS-specific tools required).
 """
@@ -15,12 +13,12 @@ import ctypes.util
 import hashlib
 import json
 import os
-import shutil
-import subprocess
 import tempfile
 import urllib.request
 from pathlib import Path
 from xml.etree import ElementTree
+
+import pybit7z
 
 DOWNLOAD_URL = "https://dl.google.com/japanese-ime/latest/GoogleJapaneseInput.dmg"
 BUNDLE_ID = "com.google.inputmethod.Japanese"
@@ -111,24 +109,21 @@ def fetch_version(tmpdir: Path) -> str:
     print(f"Downloading {DOWNLOAD_URL} ...")
     urllib.request.urlretrieve(DOWNLOAD_URL, dmg_path)
 
-    # Extract .pkg from DMG using 7zz
-    pkg_out = tmpdir / "dmg-extracted"
+    # Extract .pkg from DMG using pybit7z (two-step: DMG -> HFS partition -> .pkg)
+    partitions_out = tmpdir / "dmg-partitions"
+    partitions_out.mkdir()
+    pkg_out = tmpdir / "hfs-extracted"
     pkg_out.mkdir()
-    sevenzip = shutil.which("7zz")
-    if sevenzip is None:
-        raise RuntimeError("7zz not found; ensure _7zz is in the environment")
-    subprocess.run(
-        [
-            sevenzip,
-            "x",
-            str(dmg_path),
-            f"-o{pkg_out}",
-            "GoogleJapaneseInput/GoogleJapaneseInput.pkg",
-            "-y",
-        ],
-        check=True,
-        capture_output=True,
-    )
+    with pybit7z.lib7zip_context() as lib7zip:
+        # Step 1: extract DMG into raw HFS partition image
+        pybit7z.BitFileExtractor(lib7zip, pybit7z.FormatDmg).extract(
+            str(dmg_path), str(partitions_out)
+        )
+        # Step 2: extract .pkg from the HFS partition
+        hfs_img = partitions_out / "2.hfs"
+        pybit7z.BitFileExtractor(lib7zip, pybit7z.FormatHfs).extract(
+            str(hfs_img), str(pkg_out)
+        )
 
     # Extract PackageInfo from .pkg using libxar via ctypes
     pkg_file = pkg_out / "GoogleJapaneseInput" / "GoogleJapaneseInput.pkg"

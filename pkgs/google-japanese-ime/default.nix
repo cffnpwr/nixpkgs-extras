@@ -1,11 +1,14 @@
 {
   lib,
+  pkgs,
   stdenvNoCC,
   fetchurl,
   undmg,
   xar,
   gzip,
   cpio,
+  writeShellScript,
+  python3,
 }:
 
 let
@@ -54,7 +57,16 @@ stdenvNoCC.mkDerivation {
   # Don't modify binaries to preserve Apple code signing
   dontFixup = true;
 
-  passthru.updateScript = ./update.py;
+  passthru.updateScript =
+    let
+      python = python3.withPackages (_: [ pkgs.pybit7z ]);
+      xarLib = pkgs.xar.lib;
+    in
+    writeShellScript "google-japanese-ime-update" ''
+      export DYLD_LIBRARY_PATH="${xarLib}/lib''${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
+      export LD_LIBRARY_PATH="${xarLib}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      exec ${python}/bin/python3 ${./update.py} "$@"
+    '';
 
   meta = with lib; {
     description = "Google Japanese Input Method Editor";
