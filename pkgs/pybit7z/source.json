@@ -1,0 +1,21 @@
+{
+  "version": "0.4.0",
+  "wheels": {
+    "aarch64-darwin": {
+      "url": "https://files.pythonhosted.org/packages/7e/ba/daf2d3df0a93dca35dbb536ca09129e663d43a0104b5318b236c9337885b/pybit7z-0.4.0-cp313-cp313-macosx_11_0_arm64.whl",
+      "hash": "sha256-ikWD34VvgLP1HoqFa/otcvkiah63OYvoA0MNOIuSPik="
+    },
+    "aarch64-linux": {
+      "url": "https://files.pythonhosted.org/packages/62/da/b1f7f8444acab3ae27592d8ddcd64899c0b967448dc08debade1aac7c539/pybit7z-0.4.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+      "hash": "sha256-r2LYj3VzEvYWIa6NWdEGm2eo3p69JO2I78BzUvdgtCU="
+    },
+    "x86_64-darwin": {
+      "url": "https://files.pythonhosted.org/packages/87/da/976f1dfdaf7dd398fc0d4905a51b1859841fc2a7d8ccf72b980e644a7ee5/pybit7z-0.4.0-cp313-cp313-macosx_10_15_x86_64.whl",
+      "hash": "sha256-5401EbCeLehAcyKpPDz5F9eDXB2VpLYJW2Qcdr59hag="
+    },
+    "x86_64-linux": {
+      "url": "https://files.pythonhosted.org/packages/d0/f1/ff756b4561dcabc6917b8195d3d5248b2b52488a536c493e32c950f001ed/pybit7z-0.4.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+      "hash": "sha256-0gaZZqJsL8uSRHXvtHuO3H3xaoR/KhngoUAV9S3hcAo="
+    }
+  }
+}
