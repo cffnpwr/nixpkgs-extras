@@ -16,7 +16,13 @@
 }:
 let
   scriptsLib = import ./lib.nix { inherit lib; };
-  inherit (scriptsLib) validateUpdateScript parseUpdateScript;
+  inherit (scriptsLib)
+    validateUpdateScript
+    parseUpdateScript
+    flattenPackages
+    resolvePkg
+    getUpdatablePackages
+    ;
 
   path =
     with pkgs;
@@ -27,19 +33,23 @@ let
       gnused
     ];
 
-  allPkgNames = lib.attrNames allPackages;
-  pkgsWithUpdateScript = lib.filter (v: allPackages.${v} ? passthru.updateScript) allPkgNames;
+  flatPkgs = flattenPackages "" allPackages;
+
+  flatPkgPaths = map (x: x.path) flatPkgs;
+  pkgsWithUpdateScript = lib.filter (
+    p: (resolvePkg allPackages p) ? passthru.updateScript
+  ) flatPkgPaths;
 
   # Collect validation results for all packages with updateScript
   validationResults = builtins.listToAttrs (
     map (pkg: {
       name = pkg;
-      value = validateUpdateScript pkg allPackages.${pkg}.passthru.updateScript;
+      value = validateUpdateScript pkg (resolvePkg allPackages pkg).passthru.updateScript;
     }) pkgsWithUpdateScript
   );
 
   # Separate valid and invalid packages
-  pkgList = lib.filter (pkg: validationResults.${pkg}.isValid) pkgsWithUpdateScript;
+  pkgList = getUpdatablePackages allPackages;
   _invalidPkgs = lib.filter (pkg: !validationResults.${pkg}.isValid) pkgsWithUpdateScript;
 
   # Generate warning messages for invalid packages (evaluated at build time)
@@ -54,7 +64,7 @@ let
   getValidatedCmdList =
     pkg:
     let
-      updateScript = allPackages.${pkg}.passthru.updateScript;
+      updateScript = (resolvePkg allPackages pkg).passthru.updateScript;
       validationResult = validateUpdateScript pkg updateScript;
     in
     if !validationResult.isValid then
@@ -78,7 +88,7 @@ let
   mkCaseEntry =
     pkg:
     let
-      pkgInfo = allPackages.${pkg};
+      pkgInfo = resolvePkg allPackages pkg;
       updateCmd = getUpdateScriptCmd pkg;
     in
     lib.concatStringsSep "\n" [

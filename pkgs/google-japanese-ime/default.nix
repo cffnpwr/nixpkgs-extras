@@ -1,21 +1,27 @@
 {
   lib,
+  pkgs,
   stdenvNoCC,
   fetchurl,
   undmg,
   xar,
   gzip,
   cpio,
+  writeShellScript,
+  python3,
 }:
 
+let
+  source = builtins.fromJSON (builtins.readFile ./source.json);
+in
 stdenvNoCC.mkDerivation {
   pname = "google-japanese-ime";
-  version = "3.33.6088";
+  inherit (source) version;
 
   src = fetchurl {
     url = "https://dl.google.com/japanese-ime/latest/GoogleJapaneseInput.dmg";
     # Google doesn't provide stable URLs with hashes, hash may change when updated
-    sha256 = "sha256-AEWOEuWBoc+OEuixLUIWzqtpHKAWSX9IZW/SX3uvuKk=";
+    inherit (source) sha256;
   };
 
   nativeBuildInputs = [
@@ -50,6 +56,17 @@ stdenvNoCC.mkDerivation {
 
   # Don't modify binaries to preserve Apple code signing
   dontFixup = true;
+
+  passthru.updateScript =
+    let
+      python = python3.withPackages (_: [ pkgs.pybit7z ]);
+      xarLib = pkgs.xar.lib;
+    in
+    writeShellScript "google-japanese-ime-update" ''
+      export DYLD_LIBRARY_PATH="${xarLib}/lib''${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
+      export LD_LIBRARY_PATH="${xarLib}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      exec ${python}/bin/python3 ${./update.py} "$@"
+    '';
 
   meta = with lib; {
     description = "Google Japanese Input Method Editor";

@@ -7,13 +7,15 @@
   writeShellScript,
 }:
 
-stdenvNoCC.mkDerivation rec {
+let
+  source = builtins.fromJSON (builtins.readFile ./source.json);
+in
+stdenvNoCC.mkDerivation {
   pname = "claude";
-  version = "1.0.2339";
+  inherit (source) version;
 
   src = fetchurl {
-    url = "https://downloads.claude.ai/releases/darwin/universal/1.0.2339/Claude-1782e27bb4481b2865073bfb82a97b5b23554636.zip";
-    sha256 = "sha256-EjmDGrxPsEppjQw3tlrJKD2v+B0q0Qmpv4TRCzC7y4E=";
+    inherit (source) url sha256;
   };
 
   nativeBuildInputs = [ unzip ];
@@ -37,49 +39,49 @@ stdenvNoCC.mkDerivation rec {
       path =
         with pkgs;
         lib.makeBinPath [
+          coreutils
           curlMinimal
-          gnused
           jq
           nix
         ];
 
       updateInfoURL = "https://claude.ai/api/desktop/darwin/universal/zip/latest";
       fakeUserAgent = "claude-updater/1.0";
-
-      script = writeShellScript "claude-update-script" ''
-        set -euo pipefail
-
-        PATH=${path}
-
-        # Nix file path passed as argument
-        nixFile="$1"
-
-        # Fetch new release version and URL
-        read -r newVersion url < <(
-          curl -sSfL -A "${fakeUserAgent}" ${updateInfoURL} | jq -r '.version + " " + .url'
-        )
-
-        # Compare version
-        # If fetched version matches current version, exit successfully
-        echo "Current version: ${version}"
-        echo "Latest version:  $newVersion"
-        if [ "$newVersion" = "${version}" ]; then
-          echo "No updates detected"
-          exit 0
-        fi
-
-        # Update nix file
-        echo "Updating file: $nixFile"
-        sha256=$(nix hash convert --hash-algo sha256 $(nix-prefetch-url "$url"))
-        sed -i "s|version = \".*\";|version = \"$newVersion\";|" "$nixFile"
-        sed -i "s|sha256 = \".*\";|sha256 = \"$sha256\";|" "$nixFile"
-        sed -i "s|url = \".*\";|url = \"$url\";|" "$nixFile"
-      '';
     in
-    [
-      script
-      ./default.nix
-    ];
+    writeShellScript "claude-update-script" ''
+      set -euo pipefail
+
+      PATH=${path}
+
+      # Resolve source.json path from repo root via UPDATE_NIX_ATTR_PATH
+      # nix-update runs scripts with cwd=<repo root> and sets UPDATE_NIX_ATTR_PATH
+      sourceJson="pkgs/''${UPDATE_NIX_ATTR_PATH}/source.json"
+
+      # Fetch new release version and URL
+      read -r newVersion url < <(
+        curl -sSfL -A "${fakeUserAgent}" ${updateInfoURL} | jq -r '.version + " " + .url'
+      )
+
+      # Compare version
+      currentVersion=$(jq -r '.version' "$sourceJson")
+      echo "Current version: $currentVersion"
+      echo "Latest version:  $newVersion"
+      if [ "$newVersion" = "$currentVersion" ]; then
+        echo "No updates detected"
+        exit 0
+      fi
+
+      # Update source.json
+      echo "Updating: $sourceJson"
+      sha256=$(nix hash convert --hash-algo sha256 $(nix-prefetch-url "$url"))
+      jq \
+        --arg version "$newVersion" \
+        --arg url "$url" \
+        --arg sha256 "$sha256" \
+        '.version = $version | .url = $url | .sha256 = $sha256' \
+        "$sourceJson" > "$sourceJson.tmp"
+      mv "$sourceJson.tmp" "$sourceJson"
+    '';
 
   meta = with lib; {
     description = "Claude AI assistant desktop application";
