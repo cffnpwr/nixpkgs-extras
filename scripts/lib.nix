@@ -101,15 +101,15 @@ let
         [ updateScript ];
 
     # Flatten an attrset of packages into a list of { path, value } records.
-    # Nested attrsets (without a `type` attr) are recursed into with "/" separators.
-    # e.g. microsoft-office.word -> { path = "microsoft-office/word"; value = <drv>; }
+    # Nested attrsets (without a `type` attr) are recursed into with "." separators.
+    # e.g. microsoft-office.word -> { path = "microsoft-office.word"; value = <drv>; }
     flattenPackages =
       prefix: attrs:
       lib.concatMap (
         name:
         let
           value = attrs.${name};
-          path = if prefix == "" then name else "${prefix}/${name}";
+          path = if prefix == "" then name else "${prefix}.${name}";
         in
         if lib.isDerivation value then
           [ { inherit path value; } ]
@@ -119,11 +119,11 @@ let
           [ ]
       ) (lib.attrNames attrs);
 
-    # Resolve a "/"-separated path string to the actual attribute in allPackages.
+    # Resolve a "."-separated path string to the actual attribute in allPackages.
     resolvePkg =
       allPackages: path:
       let
-        parts = lib.splitString "/" path;
+        parts = lib.splitString "." path;
       in
       lib.getAttrFromPath parts allPackages;
 

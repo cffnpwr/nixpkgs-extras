@@ -6,9 +6,8 @@
   kmonad = pkgs.callPackage ./kmonad { };
   microsoft-office = pkgs.lib.recurseIntoAttrs (pkgs.callPackage ./microsoft-office { });
   obsidian = pkgs.callPackage ./obsidian { };
-  pybit7z = pkgs.python3Packages.callPackage ./pybit7z {
-    inherit pkgs;
-    inherit (pkgs) writeShellScript;
+  python3Packages = pkgs.lib.recurseIntoAttrs {
+    pybit7z = pkgs.python3Packages.callPackage ./pybit7z { inherit pkgs; };
   };
   teams = pkgs.callPackage ./teams { };
 }

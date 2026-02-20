@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 0 * * *"
   workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Packages to update (comma-separated, e.g. "hoge, fuga"). Leave empty to update all.'
+        required: false
+        default: ''
 
 concurrency:
   group: update-packages
@@ -21,7 +26,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
         with:
-          app-id: ${{ secrets.UPDATE_APP_ID }}
+          app-id: ${{ vars.UPDATE_APP_ID }}
           private-key: ${{ secrets.UPDATE_PRIVATE_KEY }}
 
       - name: Checkout
@@ -36,18 +41,31 @@ jobs:
         id: set-matrix
         run: |
           full_matrix=$(nix run .#generate-github-actions-matrix)
+          input_packages="${{ inputs.packages }}"
 
-          # Extract updatable packages for a single representative system (x86_64-linux)
-          # The update scripts themselves are system-agnostic
-          matrix=$(echo "$full_matrix" | jq -c '
-            {
-              include: [
-                .include[]
-                | select(.updatable == true and .system == "x86_64-linux")
-                | { package }
-              ]
-            }
-          ')
+          if [ -n "$input_packages" ]; then
+            pkg_filter=$(echo "$input_packages" | jq -Rc 'split(",") | map(ltrimstr(" ") | rtrimstr(" ")) | map(select(length > 0))')
+            matrix=$(echo "$full_matrix" | jq -c --argjson filter "$pkg_filter" '
+              {
+                include: [
+                  .include[]
+                  | select(.updatable == true)
+                  | select(.package as $p | $filter | index($p) != null)
+                  | { package }
+                ] | unique_by(.package)
+              }
+            ')
+          else
+            matrix=$(echo "$full_matrix" | jq -c '
+              {
+                include: [
+                  .include[]
+                  | select(.updatable == true)
+                  | { package }
+                ] | unique_by(.package)
+              }
+            ')
+          fi
 
           has_packages=$(echo "$matrix" | jq '.include | length > 0')
           echo "has_packages=$has_packages" >> "$GITHUB_OUTPUT"
@@ -67,7 +85,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
         with:
-          app-id: ${{ secrets.UPDATE_APP_ID }}
+          app-id: ${{ vars.UPDATE_APP_ID }}
           private-key: ${{ secrets.UPDATE_PRIVATE_KEY }}
 
       - name: Checkout
@@ -82,26 +100,46 @@ jobs:
             sandbox = false
             ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
 
+      - name: Get GitHub App User ID
+        id: get-user-id
+        run: echo "user-id=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
       - name: Configure git
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
+          git config user.email "${{ steps.get-user-id.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+
+      - name: Get current version
+        id: old-version
+        run: |
+          version=$(nix eval --raw .#${{ matrix.package }}.version 2>/dev/null || echo "unknown")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Run update script
         run: |
-          # convert dot-separated package name to slash-separated path for update-pkg
-          pkg_path=$(echo "${{ matrix.package }}" | tr '.' '/')
-          nix run .#update-pkg -- "$pkg_path"
+          nix run .#update-pkg -- "${{ matrix.package }}"
+
+      - name: Get new version
+        id: new-version
+        run: |
+          version=$(nix eval --raw .#${{ matrix.package }}.version 2>/dev/null || echo "unknown")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
           token: ${{ steps.app-token.outputs.token }}
           branch: update-pkg/${{ matrix.package }}
-          title: "chore(pkgs): :package: update ${{ matrix.package }}"
+          title: "chore(pkgs): :package: update ${{ matrix.package }} ${{ steps.old-version.outputs.version }} -> ${{ steps.new-version.outputs.version }}"
           body: |
             Automated package update for `${{ matrix.package }}`.
 
+            | Package                 | Old version                                | New version                                |
+            | ----------------------- | ------------------------------------------ | ------------------------------------------ |
+            | `${{ matrix.package }}` | `${{ steps.old-version.outputs.version }}` | `${{ steps.new-version.outputs.version }}` |
+
             Generated by the [Update Packages](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) workflow.
-          commit-message: "chore(pkgs): :package: update ${{ matrix.package }}"
+          commit-message: "chore(pkgs): :package: update ${{ matrix.package }} ${{ steps.old-version.outputs.version }} -> ${{ steps.new-version.outputs.version }}"
           delete-branch: true
