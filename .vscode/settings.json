@@ -6,7 +6,8 @@
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
     "*.nix": "${capture}.test.nix",
-    "flake.nix": "flake.lock"
+    "flake.nix": "flake.lock",
+    "AGENTS.md": "CLAUDE.md"
   },
   "[nix]": {
     "editor.defaultFormatter": "brettm12345.nixfmt-vscode"

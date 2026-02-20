@@ -3,15 +3,6 @@
   "extends": [
     "config:recommended"
   ],
-  "nix": {
-    "enabled": true
-  },
-  "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": [
-      "before 3am on Monday"
-    ]
-  },
   "packageRules": [
     {
       "matchManagers": [
@@ -25,5 +16,17 @@
       ],
       "commitMessagePrefix": "chore(ci): :package:"
     }
+  ],
+  "nix": {
+    "enabled": true
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 3am on Monday"
+    ]
+  },
+  "ignorePaths": [
+    "pkgs/**"
   ]
 }
