@@ -6,7 +6,6 @@
   fetchurl,
   autoPatchelfHook,
   importlib-metadata,
-  writeShellScript,
 }:
 
 let
@@ -29,7 +28,7 @@ buildPythonPackage {
 
   pythonImportsCheck = [ "pybit7z" ];
 
-  passthru.updateScript = writeShellScript "pybit7z-update-script" ''
+  passthru.updateScript = pkgs.writeShellScript "pybit7z-update-script" ''
     exec ${pkgs.python3}/bin/python3 ${./update.py} "$@"
   '';
 

@@ -59,7 +59,7 @@ stdenvNoCC.mkDerivation {
 
   passthru.updateScript =
     let
-      python = python3.withPackages (_: [ pkgs.pybit7z ]);
+      python = python3.withPackages (_: [ pkgs.python3Packages.pybit7z ]);
       xarLib = pkgs.xar.lib;
     in
     writeShellScript "google-japanese-ime-update" ''
