@@ -3,6 +3,8 @@
 # To run: `nix run .#update-pkg <package name>`
 # If <package name> is omitted, show all available packages: `nix run .#update-pkg`
 #
+# <package name> uses dot-separated notation (e.g. `microsoft-office.word`)
+#
 # To update a package with this script, it must contain a `passthru.updateScript` attribute of the type defined in
 # [automatic-package-updates](https://github.com/NixOS/nixpkgs/blob/master/pkgs/README.md#automatic-package-updates).
 #

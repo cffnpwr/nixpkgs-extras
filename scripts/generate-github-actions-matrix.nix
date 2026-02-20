@@ -36,7 +36,7 @@ let
                 inherit system;
                 package = fullName;
                 os = systemToRunner.${system} or null;
-                updatable = lib.elem (lib.replaceStrings [ "." ] [ "/" ] fullName) updatablePkgPaths;
+                updatable = lib.elem fullName updatablePkgPaths;
               }
             ]
           else

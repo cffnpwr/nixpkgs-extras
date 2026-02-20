@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 0 * * *"
   workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Packages to update (comma-separated, e.g. "hoge, fuga"). Leave empty to update all.'
+        required: false
+        default: ''
 
 concurrency:
   group: update-packages
@@ -36,17 +41,31 @@ jobs:
         id: set-matrix
         run: |
           full_matrix=$(nix run .#generate-github-actions-matrix)
+          input_packages="${{ inputs.packages }}"
 
-          # Extract one entry per updatable package (system-agnostic dedup)
-          matrix=$(echo "$full_matrix" | jq -c '
-            {
-              include: [
-                .include[]
-                | select(.updatable == true)
-                | { package }
-              ] | unique_by(.package)
-            }
-          ')
+          if [ -n "$input_packages" ]; then
+            pkg_filter=$(echo "$input_packages" | jq -Rc 'split(",") | map(ltrimstr(" ") | rtrimstr(" ")) | map(select(length > 0))')
+            matrix=$(echo "$full_matrix" | jq -c --argjson filter "$pkg_filter" '
+              {
+                include: [
+                  .include[]
+                  | select(.updatable == true)
+                  | select(.package as $p | $filter | index($p) != null)
+                  | { package }
+                ] | unique_by(.package)
+              }
+            ')
+          else
+            matrix=$(echo "$full_matrix" | jq -c '
+              {
+                include: [
+                  .include[]
+                  | select(.updatable == true)
+                  | { package }
+                ] | unique_by(.package)
+              }
+            ')
+          fi
 
           has_packages=$(echo "$matrix" | jq '.include | length > 0')
           echo "has_packages=$has_packages" >> "$GITHUB_OUTPUT"
@@ -100,9 +119,7 @@ jobs:
 
       - name: Run update script
         run: |
-          # convert dot-separated package name to slash-separated path for update-pkg
-          pkg_path=$(echo "${{ matrix.package }}" | tr '.' '/')
-          nix run .#update-pkg -- "$pkg_path"
+          nix run .#update-pkg -- "${{ matrix.package }}"
 
       - name: Get new version
         id: new-version
