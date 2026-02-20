@@ -240,16 +240,16 @@ in
     "flattens top-level derivations" = {
       expr = map (x: x.path) (flattenPackages "" mockPackages);
       expected = [
-        "nested/child"
+        "nested.child"
         "no-update"
         "simple"
       ];
     };
 
-    "flattens nested derivations with slash separator" = {
+    "flattens nested derivations with dot separator" = {
       expr =
-        (builtins.head (lib.filter (x: x.path == "nested/child") (flattenPackages "" mockPackages))).path;
-      expected = "nested/child";
+        (builtins.head (lib.filter (x: x.path == "nested.child") (flattenPackages "" mockPackages))).path;
+      expected = "nested.child";
     };
 
     "skips non-derivation non-attrset values" = {
@@ -270,8 +270,8 @@ in
       expected = "simple";
     };
 
-    "resolves nested package with slash path" = {
-      expr = (resolvePkg mockPackages "nested/child").name;
+    "resolves nested package with dot path" = {
+      expr = (resolvePkg mockPackages "nested.child").name;
       expected = "child";
     };
   };
@@ -281,7 +281,7 @@ in
     "returns only packages with valid updateScript" = {
       expr = builtins.sort builtins.lessThan (getUpdatablePackages mockPackages);
       expected = [
-        "nested/child"
+        "nested.child"
         "simple"
       ];
     };
