@@ -14,10 +14,16 @@ concurrency:
   group: update-packages
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   generate-matrix:
     name: Generate Update Matrix
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       has_packages: ${{ steps.set-matrix.outputs.has_packages }}
@@ -28,10 +34,12 @@ jobs:
         with:
           app-id: ${{ vars.UPDATE_APP_ID }}
           private-key: ${{ secrets.UPDATE_PRIVATE_KEY }}
+          permission-contents: read
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Install Nix
@@ -39,12 +47,13 @@ jobs:
 
       - name: Generate matrix
         id: set-matrix
+        env:
+          INPUT_PACKAGES: ${{ inputs.packages }}
         run: |
           full_matrix=$(nix run .#generate-github-actions-matrix)
-          input_packages="${{ inputs.packages }}"
 
-          if [ -n "$input_packages" ]; then
-            pkg_filter=$(echo "$input_packages" | jq -Rc 'split(",") | map(ltrimstr(" ") | rtrimstr(" ")) | map(select(length > 0))')
+          if [ -n "$INPUT_PACKAGES" ]; then
+            pkg_filter=$(echo "$INPUT_PACKAGES" | jq -Rc 'split(",") | map(ltrimstr(" ") | rtrimstr(" ")) | map(select(length > 0))')
             matrix=$(echo "$full_matrix" | jq -c --argjson filter "$pkg_filter" '
               {
                 include: [
@@ -77,6 +86,9 @@ jobs:
     needs: generate-matrix
     if: needs.generate-matrix.outputs.has_packages == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
@@ -87,10 +99,13 @@ jobs:
         with:
           app-id: ${{ vars.UPDATE_APP_ID }}
           private-key: ${{ secrets.UPDATE_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Install Nix
@@ -102,29 +117,39 @@ jobs:
 
       - name: Get GitHub App User ID
         id: get-user-id
-        run: echo "user-id=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: echo "user-id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
 
       - name: Configure git
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          USER_ID: ${{ steps.get-user-id.outputs.user-id }}
         run: |
-          git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
-          git config user.email "${{ steps.get-user-id.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
 
       - name: Get current version
         id: old-version
+        env:
+          PACKAGE: ${{ matrix.package }}
         run: |
-          version=$(nix eval --raw .#${{ matrix.package }}.version 2>/dev/null || echo "unknown")
+          version=$(nix eval --raw ".#$PACKAGE.version" 2>/dev/null || echo "unknown")
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Run update script
+        env:
+          PACKAGE: ${{ matrix.package }}
         run: |
-          nix run .#update-pkg -- "${{ matrix.package }}"
+          nix run .#update-pkg -- "$PACKAGE"
 
       - name: Get new version
         id: new-version
+        env:
+          PACKAGE: ${{ matrix.package }}
         run: |
-          version=$(nix eval --raw .#${{ matrix.package }}.version 2>/dev/null || echo "unknown")
+          version=$(nix eval --raw ".#$PACKAGE.version" 2>/dev/null || echo "unknown")
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
