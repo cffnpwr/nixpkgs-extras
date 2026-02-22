@@ -1,4 +1,4 @@
-name: CI
+name: Build
 
 on:
   push:
@@ -7,41 +7,10 @@ on:
     branches: [main]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow_ref }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  flake-check:
-    name: Flake Check
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
-        with:
-          extra-conf: |
-            sandbox = false
-            ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
-
-      - name: Check flake
-        run: nix flake check --all-systems
-
-  format-check:
-    name: Format Check
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
-
-      - name: Check formatting
-        run: |
-          nix fmt -- --check .
-
   list-packages:
     name: List Packages
     runs-on: ubuntu-24.04
@@ -177,25 +146,3 @@ jobs:
       - name: Build ${{ matrix.package }} for ${{ matrix.system }}
         run: |
           nix build ".#${{ matrix.package }}" --print-build-logs --system ${{ matrix.system }}
-
-  check-build-check-successed:
-    name: Check build check successed
-    needs:
-      - flake-check
-      - format-check
-      - generate-matrix
-      - build-packages
-    if: always()
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Check results
-        run: |
-          if [[ "${{ needs.generate-matrix.outputs.has_packages }}" != "true" ]]; then
-            echo "No packages to build, skipping check"
-            exit 0
-          fi
-          if [[ "${{ needs.build-packages.result }}" != "success" ]]; then
-            echo "Build packages failed"
-            exit 1
-          fi
-          echo "All builds in build-packages job completed."
