@@ -1,5 +1,6 @@
 { pkgs, ... }:
 {
+  ccusage = pkgs.callPackage ./ccusage { };
   claude = pkgs.callPackage ./claude { };
   fusuma = pkgs.callPackage ./fusuma { };
   google-japanese-ime = pkgs.callPackage ./google-japanese-ime { };
