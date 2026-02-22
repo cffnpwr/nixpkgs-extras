@@ -1,4 +1,4 @@
-name: CI
+name: Build
 
 on:
   push:
@@ -7,47 +7,24 @@ on:
     branches: [main]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow_ref }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  flake-check:
-    name: Flake Check
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
-        with:
-          extra-conf: |
-            sandbox = false
-            ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
-
-      - name: Check flake
-        run: nix flake check --all-systems
-
-  format-check:
-    name: Format Check
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
-
-      - name: Check formatting
-        run: |
-          nix fmt -- --check .
-
   list-packages:
     name: List Packages
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
@@ -59,6 +36,9 @@ jobs:
   detect-changes:
     name: Detect Changed Packages
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
     outputs:
       build_all: ${{ steps.detect.outputs.build_all }}
       changed_packages: ${{ steps.detect.outputs.changed_packages }}
@@ -66,15 +46,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Detect changes
         id: detect
+        env:
+          GH_EVENT_NAME: ${{ github.event_name }}
         run: |
           # Build all packages on push to main
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "build_all=true" >> $GITHUB_OUTPUT
-            echo "changed_packages=[]" >> $GITHUB_OUTPUT
+          if [[ "$GH_EVENT_NAME" == "push" ]]; then
+            echo "build_all=true" >> "$GITHUB_OUTPUT"
+            echo "changed_packages=[]" >> "$GITHUB_OUTPUT"
             echo "Push to main detected, building all packages"
             exit 0
           fi
@@ -86,8 +69,8 @@ jobs:
 
           # Check if flake.nix or flake.lock changed
           if echo "$changed_files" | grep -qE '^flake\.(nix|lock)$'; then
-            echo "build_all=true" >> $GITHUB_OUTPUT
-            echo "changed_packages=[]" >> $GITHUB_OUTPUT
+            echo "build_all=true" >> "$GITHUB_OUTPUT"
+            echo "changed_packages=[]" >> "$GITHUB_OUTPUT"
             echo "flake.nix or flake.lock changed, building all packages"
             exit 0
           fi
@@ -96,14 +79,14 @@ jobs:
           changed_packages=$(echo "$changed_files" | grep -oE '^pkgs/[^/]+/' | sed 's|pkgs/||; s|/$||' | grep -v '^overlays$' | sort -u)
 
           if [[ -z "$changed_packages" ]]; then
-            echo "build_all=false" >> $GITHUB_OUTPUT
-            echo "changed_packages=[]" >> $GITHUB_OUTPUT
+            echo "build_all=false" >> "$GITHUB_OUTPUT"
+            echo "changed_packages=[]" >> "$GITHUB_OUTPUT"
             echo "No package changes detected"
           else
             # Convert to JSON array
             json_array=$(echo "$changed_packages" | jq -R -s -c 'split("\n") | map(select(length > 0))')
-            echo "build_all=false" >> $GITHUB_OUTPUT
-            echo "changed_packages=$json_array" >> $GITHUB_OUTPUT
+            echo "build_all=false" >> "$GITHUB_OUTPUT"
+            echo "changed_packages=$json_array" >> "$GITHUB_OUTPUT"
             echo "Changed packages: $json_array"
           fi
 
@@ -111,33 +94,38 @@ jobs:
     name: Generate Build Matrix
     needs: detect-changes
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       has_packages: ${{ steps.set-matrix.outputs.has_packages }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
 
       - name: Generate matrix
         id: set-matrix
+        env:
+          BUILD_ALL: ${{ needs.detect-changes.outputs.build_all }}
+          CHANGED_PACKAGES: ${{ needs.detect-changes.outputs.changed_packages }}
         run: |
           # Get full matrix from Nix
           full_matrix=$(nix run .#generate-github-actions-matrix)
 
-          build_all="${{ needs.detect-changes.outputs.build_all }}"
-          changed_packages='${{ needs.detect-changes.outputs.changed_packages }}'
-
-          if [[ "$build_all" == "true" ]]; then
+          if [[ "$BUILD_ALL" == "true" ]]; then
             echo "Building all packages"
             matrix="$full_matrix"
           else
-            echo "Filtering to changed packages: $changed_packages"
+            echo "Filtering to changed packages: $CHANGED_PACKAGES"
             # Filter matrix to only include changed packages
             # For packages like microsoft-office.excel, check if microsoft-office is in changed_packages
-            matrix=$(echo "$full_matrix" | jq -c --argjson changed "$changed_packages" '
+            matrix=$(echo "$full_matrix" | jq -c --argjson changed "$CHANGED_PACKAGES" '
               .include |= map(
                 select(
                   .package as $pkg |
@@ -151,8 +139,8 @@ jobs:
 
           # Check if matrix has any packages
           has_packages=$(echo "$matrix" | jq '.include | length > 0')
-          echo "has_packages=$has_packages" >> $GITHUB_OUTPUT
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "has_packages=$has_packages" >> "$GITHUB_OUTPUT"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "Matrix: $matrix"
 
   build-packages:
@@ -160,12 +148,17 @@ jobs:
     needs: generate-matrix
     if: needs.generate-matrix.outputs.has_packages == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
@@ -175,27 +168,7 @@ jobs:
             ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
 
       - name: Build ${{ matrix.package }} for ${{ matrix.system }}
-        run: |
-          nix build ".#${{ matrix.package }}" --print-build-logs --system ${{ matrix.system }}
-
-  check-build-check-successed:
-    name: Check build check successed
-    needs:
-      - flake-check
-      - format-check
-      - generate-matrix
-      - build-packages
-    if: always()
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Check results
-        run: |
-          if [[ "${{ needs.generate-matrix.outputs.has_packages }}" != "true" ]]; then
-            echo "No packages to build, skipping check"
-            exit 0
-          fi
-          if [[ "${{ needs.build-packages.result }}" != "success" ]]; then
-            echo "Build packages failed"
-            exit 1
-          fi
-          echo "All builds in build-packages job completed."
+        env:
+          PACKAGE: ${{ matrix.package }}
+          SYSTEM: ${{ matrix.system }}
+        run: nix build ".#$PACKAGE" --print-build-logs --system "$SYSTEM"
