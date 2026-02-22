@@ -1,31 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "github>cffnpwr/renovate-config"
   ],
-  "packageRules": [
-    {
-      "matchManagers": [
-        "nix"
-      ],
-      "commitMessagePrefix": "chore(flake): :package:"
-    },
-    {
-      "matchManagers": [
-        "github-actions"
-      ],
-      "commitMessagePrefix": "chore(ci): :package:"
-    }
-  ],
-  "nix": {
-    "enabled": true
-  },
-  "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": [
-      "before 3am on Monday"
-    ]
-  },
   "ignorePaths": [
     "pkgs/**"
   ]
