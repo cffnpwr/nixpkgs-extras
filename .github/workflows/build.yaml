@@ -144,5 +144,4 @@ jobs:
             ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
 
       - name: Build ${{ matrix.package }} for ${{ matrix.system }}
-        run: |
-          nix build ".#${{ matrix.package }}" --print-build-logs --system ${{ matrix.system }}
+        run: nix build ".#${{ matrix.package }}" --print-build-logs --system ${{ matrix.system }}

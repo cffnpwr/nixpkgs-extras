@@ -78,6 +78,8 @@
               nil
               nixd
               nixfmt
+              treefmt
+              yamlfmt
             ];
           };
 
