@@ -59,8 +59,6 @@ let
     pkg: lib.warn "Skipping '${pkg}': ${lib.concatStringsSep ", " validationResults.${pkg}.errors}"
   ) _invalidPkgs;
 
-  availablePkgs = lib.concatMapStringsSep "\n" (pkg: "    echo '  - ${pkg}'") pkgList;
-
   # Get validated and parsed command list from package's updateScript
   # Throws error if validation fails for the target package
   getValidatedCmdList =
@@ -100,9 +98,86 @@ let
       "    export UPDATE_NIX_OLD_VERSION=\"${pkgInfo.version}\""
       "    export UPDATE_NIX_ATTR_PATH=\"${pkg}\""
       ""
-      "    _run_update_script ${updateCmd}"
+      "    _run_update_script true ${updateCmd}"
       "    ;;"
     ];
+
+  # Group packages by updateGroup label -> list of member package paths
+  groupMap =
+    let
+      addPkg =
+        acc: pkg:
+        let
+          drv = resolvePkg allPackages pkg;
+          label = drv.meta.updateGroup or pkg;
+        in
+        acc // { ${label} = (acc.${label} or [ ]) ++ [ pkg ]; };
+    in
+    lib.foldl addPkg { } pkgList;
+
+  # True when the label represents a real group:
+  # either there are multiple members, or the label differs from the sole member path.
+  isRealGroup = label: members: builtins.length members > 1 || label != builtins.head members;
+
+  # For each label: show the label, then show individual members indented when it is a
+  # real group (label differs from the sole member, or there are multiple members).
+  availablePkgs =
+    let
+      sortedLabels = lib.sort lib.lessThan (lib.attrNames groupMap);
+    in
+    lib.concatMapStringsSep "\n" (
+      label:
+      let
+        members = groupMap.${label};
+        memberLines = lib.concatMapStringsSep "\n" (pkg: "    echo '    - ${pkg}'") members;
+      in
+      if isRealGroup label members then
+        "    echo '  - ${label}'\n${memberLines}"
+      else
+        "    echo '  - ${label}'"
+    ) sortedLabels;
+
+  # Generate case entry for an updateGroup label that runs all members in parallel
+  mkGroupCaseEntry =
+    label: members:
+    let
+      memberCmds = lib.concatMapStringsSep "\n" (
+        pkg:
+        let
+          pkgInfo = resolvePkg allPackages pkg;
+          updateCmd = getUpdateScriptCmd pkg;
+        in
+        lib.concatStringsSep "\n" [
+          "    ("
+          "      export UPDATE_NIX_NAME=\"${pkgInfo.name}\""
+          "      export UPDATE_NIX_PNAME=\"${pkgInfo.pname}\""
+          "      export UPDATE_NIX_OLD_VERSION=\"${pkgInfo.version}\""
+          "      export UPDATE_NIX_ATTR_PATH=\"${pkg}\""
+          "      _run_update_script false ${updateCmd}"
+          "    ) &"
+          "    pids+=($!)"
+        ]
+      ) members;
+    in
+    lib.concatStringsSep "\n" [
+      "  ${label})"
+      "    pids=()"
+      memberCmds
+      "    exit_code=0"
+      "    for pid in \"\${pids[@]}\"; do"
+      "      wait \"$pid\" || exit_code=1"
+      "    done"
+      "    exit $exit_code"
+      "    ;;"
+    ];
+
+  # Only emit group entries for labels that differ from a single member path
+  # (i.e. only real groups, not solo packages that already have their own entry)
+  groupCaseEntries = lib.concatStringsSep "\n" (
+    lib.mapAttrsToList (
+      label: members: if isRealGroup label members then mkGroupCaseEntry label members else ""
+    ) groupMap
+  );
 
   eachAvailablePkgs = lib.concatMapStringsSep "\n" mkCaseEntry pkgList;
 
@@ -122,6 +197,8 @@ let
     }
 
     _run_update_script() {
+      local use_exec="''${1}"
+      shift
       local cmd_args=("$@")
       local workdir=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
@@ -141,7 +218,11 @@ let
       done
 
       cd "$workdir"
-      exec nix develop --command bash -c "$quoted_cmd"
+      if [ "$use_exec" = "true" ]; then
+        exec nix develop --command bash -c "$quoted_cmd"
+      else
+        nix develop --command bash -c "$quoted_cmd"
+      fi
     }
 
     if [ -z "$pkg_name" ]; then
@@ -152,6 +233,7 @@ let
 
     # Check if package exists, has update script and execute update script
     case $pkg_name in
+    ${groupCaseEntries}
     ${eachAvailablePkgs}
       *)
         echo "Error: Package '$pkg_name' not found or does not have an update script."

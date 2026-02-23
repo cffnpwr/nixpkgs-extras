@@ -87,6 +87,7 @@ let
           license = licenses.unfree;
           platforms = platforms.darwin;
           maintainers = with maintainers; [ cffnpwr ];
+          updateGroup = "microsoft-office";
         }
         // meta;
     };
