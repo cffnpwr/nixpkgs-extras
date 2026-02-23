@@ -54,6 +54,11 @@ jobs:
 
           if [ -n "$INPUT_PACKAGES" ]; then
             pkg_filter=$(echo "$INPUT_PACKAGES" | jq -Rc 'split(",") | map(ltrimstr(" ") | rtrimstr(" ")) | map(select(length > 0))')
+            all_packages=$(echo "$full_matrix" | jq '[.include[].package] | unique')
+            unknown=$(echo "$pkg_filter" | jq -r --argjson all "$all_packages" '.[] | select(. as $p | $all | index($p) == null)')
+            if [ -n "$unknown" ]; then
+              echo "::warning::The following packages were not found and will be skipped: $(echo "$unknown" | tr '\n' ' ')"
+            fi
             matrix=$(echo "$full_matrix" | jq -c --argjson filter "$pkg_filter" '
               {
                 include: [
