@@ -64,7 +64,9 @@ def find_wheels(pypi_data: dict, version: str) -> dict[str, str]:
 
 def main() -> None:
     attr_path = os.environ.get("UPDATE_NIX_ATTR_PATH", "pybit7z")
-    source_json = Path("pkgs") / attr_path / "source.json"
+    # UPDATE_NIX_ATTR_PATH may be "python3Packages.pybit7z"; use the last segment
+    pkg_dir = attr_path.split(".")[-1]
+    source_json = Path("pkgs") / pkg_dir / "source.json"
 
     current = json.loads(source_json.read_text())
     current_version = current["version"]
