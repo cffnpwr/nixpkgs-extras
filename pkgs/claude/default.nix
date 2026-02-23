@@ -45,8 +45,7 @@ stdenvNoCC.mkDerivation {
           nix
         ];
 
-      updateInfoURL = "https://claude.ai/api/desktop/darwin/universal/zip/latest";
-      fakeUserAgent = "claude-updater/1.0";
+      updateInfoURL = "https://downloads.claude.ai/releases/darwin/universal/RELEASES.json";
     in
     writeShellScript "claude-update-script" ''
       set -euo pipefail
@@ -59,7 +58,7 @@ stdenvNoCC.mkDerivation {
 
       # Fetch new release version and URL
       read -r newVersion url < <(
-        curl -sSfL -A "${fakeUserAgent}" ${updateInfoURL} | jq -r '.version + " " + .url'
+        curl -sSfL ${updateInfoURL} | jq -r '. as $r | .releases[] | select(.version == $r.currentRelease) | .updateTo | .version + " " + .url'
       )
 
       # Compare version
