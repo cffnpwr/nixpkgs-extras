@@ -26,6 +26,7 @@ let
         name: value:
         let
           fullName = if prefix == "" then name else "${prefix}.${name}";
+          updateGroup = value.meta.updateGroup or null;
         in
         # check if value is a derivation
         if lib.isDerivation value then
@@ -37,6 +38,7 @@ let
                 package = fullName;
                 os = systemToRunner.${system} or null;
                 updatable = lib.elem fullName updatablePkgPaths;
+                inherit updateGroup;
               }
             ]
           else

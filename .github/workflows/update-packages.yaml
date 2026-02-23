@@ -52,6 +52,29 @@ jobs:
         run: |
           full_matrix=$(nix run .#generate-github-actions-matrix)
 
+          # Collapse packages by updateGroup:
+          # - Packages with the same updateGroup are merged into one matrix entry.
+          # - The first package in each group (sorted by package name) becomes the
+          #   representative; its name is used for the branch and PR title.
+          # - All group members are collected into a `members` JSON array so downstream
+          #   steps can retrieve and display per-package versions without any hardcoding.
+          # shellcheck disable=SC2016  # $sorted/$m are jq variables, not shell variables
+          collapse_groups='
+            [
+              .include[]
+              | select(.updatable == true)
+            ]
+            | group_by(.updateGroup // .package)
+            | map(
+                sort_by(.package) as $sorted |
+                {
+                  package: $sorted[0].package,
+                  label: ($sorted[0].updateGroup // $sorted[0].package),
+                  members: [$sorted[].package] | unique
+                }
+              )
+          '
+
           if [ -n "$INPUT_PACKAGES" ]; then
             pkg_filter=$(echo "$INPUT_PACKAGES" | jq -Rc 'split(",") | map(ltrimstr(" ") | rtrimstr(" ")) | map(select(length > 0))')
             all_packages=$(echo "$full_matrix" | jq '[.include[].package] | unique')
@@ -60,25 +83,10 @@ jobs:
               echo "::warning::The following packages were not found and will be skipped: $(echo "$unknown" | tr '\n' ' ')"
             fi
             matrix=$(echo "$full_matrix" | jq -c --argjson filter "$pkg_filter" '
-              {
-                include: [
-                  .include[]
-                  | select(.updatable == true)
-                  | select(.package as $p | $filter | index($p) != null)
-                  | { package }
-                ] | unique_by(.package)
-              }
+              { include: ('"$collapse_groups"' | map(select(.members | any(. as $m | $filter | index($m) != null)))) }
             ')
           else
-            matrix=$(echo "$full_matrix" | jq -c '
-              {
-                include: [
-                  .include[]
-                  | select(.updatable == true)
-                  | { package }
-                ] | unique_by(.package)
-              }
-            ')
+            matrix=$(echo "$full_matrix" | jq -c '{ include: ('"$collapse_groups"') }')
           fi
 
           has_packages=$(echo "$matrix" | jq '.include | length > 0')
@@ -87,7 +95,7 @@ jobs:
           echo "Matrix: $matrix"
 
   update-package:
-    name: Update ${{ matrix.package }}
+    name: Update ${{ matrix.label }}
     needs: generate-matrix
     if: needs.generate-matrix.outputs.has_packages == 'true'
     runs-on: ubuntu-24.04
@@ -138,39 +146,79 @@ jobs:
       - name: Get current version
         id: old-version
         env:
+          MEMBERS: ${{ toJson(matrix.members) }}
           PACKAGE: ${{ matrix.package }}
+          LABEL: ${{ matrix.label }}
         run: |
-          version=$(nix eval --raw ".#$PACKAGE.version" 2>/dev/null || echo "unknown")
+          # Representative version for PR title (first member = matrix.package)
+          version=$(nix eval --raw ".#${PACKAGE}.version" 2>/dev/null || echo "unknown")
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          # Per-member versions as JSON object for PR body table
+          versions_json="{}"
+          for pkg in $(echo "$MEMBERS" | jq -r '.[]'); do
+            v=$(nix eval --raw ".#$pkg.version" 2>/dev/null || echo "unknown")
+            versions_json=$(echo "$versions_json" | jq -c --arg k "$pkg" --arg v "$v" '. + {($k): $v}')
+          done
+          echo "versions_json=$versions_json" >> "$GITHUB_OUTPUT"
 
       - name: Run update script
         env:
-          PACKAGE: ${{ matrix.package }}
+          LABEL: ${{ matrix.label }}
         run: |
-          nix run .#update-pkg -- "$PACKAGE"
+          nix run .#update-pkg -- "$LABEL"
 
       - name: Get new version
         id: new-version
         env:
+          MEMBERS: ${{ toJson(matrix.members) }}
           PACKAGE: ${{ matrix.package }}
+          LABEL: ${{ matrix.label }}
         run: |
-          version=$(nix eval --raw ".#$PACKAGE.version" 2>/dev/null || echo "unknown")
+          # Representative version for PR title (first member = matrix.package)
+          version=$(nix eval --raw ".#${PACKAGE}.version" 2>/dev/null || echo "unknown")
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          # Per-member versions as JSON object for PR body table
+          versions_json="{}"
+          for pkg in $(echo "$MEMBERS" | jq -r '.[]'); do
+            v=$(nix eval --raw ".#$pkg.version" 2>/dev/null || echo "unknown")
+            versions_json=$(echo "$versions_json" | jq -c --arg k "$pkg" --arg v "$v" '. + {($k): $v}')
+          done
+          echo "versions_json=$versions_json" >> "$GITHUB_OUTPUT"
+
+      - name: Build PR body
+        id: pr-body
+        env:
+          MEMBERS: ${{ toJson(matrix.members) }}
+          OLD_VERSIONS: ${{ steps.old-version.outputs.versions_json }}
+          NEW_VERSIONS: ${{ steps.new-version.outputs.versions_json }}
+          LABEL: ${{ matrix.label }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "body<<__EOF__"
+            echo "Automated package update for \`${LABEL}\`."
+            echo ""
+            echo "| Package | Old version | New version |"
+            echo "| ------- | ----------- | ----------- |"
+            for pkg in $(echo "$MEMBERS" | jq -r '.[]'); do
+              old=$(echo "$OLD_VERSIONS" | jq -r --arg k "$pkg" '.[$k] // "unknown"')
+              new=$(echo "$NEW_VERSIONS" | jq -r --arg k "$pkg" '.[$k] // "unknown"')
+              echo "| \`${pkg}\` | \`${old}\` | \`${new}\` |"
+            done
+            echo ""
+            echo "Generated by the [Update Packages](${RUN_URL}) workflow."
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
         if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
           token: ${{ steps.app-token.outputs.token }}
-          branch: update-pkg/${{ matrix.package }}
-          title: "chore(pkgs): :package: update ${{ matrix.package }} ${{ steps.old-version.outputs.version }} -> ${{ steps.new-version.outputs.version }}"
-          body: |
-            Automated package update for `${{ matrix.package }}`.
-
-            | Package                 | Old version                                | New version                                |
-            | ----------------------- | ------------------------------------------ | ------------------------------------------ |
-            | `${{ matrix.package }}` | `${{ steps.old-version.outputs.version }}` | `${{ steps.new-version.outputs.version }}` |
-
-            Generated by the [Update Packages](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) workflow.
-          commit-message: "chore(pkgs): :package: update ${{ matrix.package }} ${{ steps.old-version.outputs.version }} -> ${{ steps.new-version.outputs.version }}"
+          branch: update-pkg/${{ matrix.label }}
+          title: "chore(pkgs): :package: update ${{ matrix.label }} ${{ steps.old-version.outputs.version }} -> ${{ steps.new-version.outputs.version }}"
+          body: ${{ steps.pr-body.outputs.body }}
+          commit-message: "chore(pkgs): :package: update ${{ matrix.label }} ${{ steps.old-version.outputs.version }} -> ${{ steps.new-version.outputs.version }}"
           delete-branch: true
