@@ -1,0 +1,62 @@
+name: Maintain update PRs
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: maintain-update-prs
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  maintain:
+    name: Maintain update PRs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+        with:
+          app-id: ${{ vars.UPDATE_APP_ID }}
+          private-key: ${{ secrets.UPDATE_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Close stale PRs and rebase active PRs
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |-
+          prs=$(gh pr list \
+            --base main \
+            --state open \
+            --label "auto-update" \
+            --json number,headRefName,title)
+
+          echo "$prs" | jq -c '.[]' | while read -r pr; do
+            number=$(echo "$pr" | jq -r '.number')
+            branch=$(echo "$pr" | jq -r '.headRefName')
+            title=$(echo "$pr" | jq -r '.title')
+
+            git fetch origin "$branch" 2>/dev/null || continue
+            diff=$(git diff "origin/main...origin/$branch" --)
+
+            if [ -z "$diff" ]; then
+              echo "Closing stale PR #${number}: ${title}"
+              gh pr edit "$number" --title "${title} - autoclosed"
+              gh pr close "$number" --delete-branch
+            else
+              echo "Rebasing PR #${number}: ${title}"
+              gh pr update-branch "$number" --rebase || true
+            fi
+          done

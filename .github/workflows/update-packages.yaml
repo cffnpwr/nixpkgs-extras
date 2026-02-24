@@ -2,7 +2,7 @@ name: Update Packages
 
 on:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 15 * * *" # Runs at 00:00 JST
   workflow_dispatch:
     inputs:
       packages:
@@ -165,8 +165,7 @@ jobs:
       - name: Run update script
         env:
           LABEL: ${{ matrix.label }}
-        run: |
-          nix run .#update-pkg -- "$LABEL"
+        run: nix run .#update-pkg -- "$LABEL"
 
       - name: Get new version
         id: new-version
@@ -213,6 +212,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
+        id: create-pr
         if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
@@ -221,4 +221,12 @@ jobs:
           title: "chore(pkgs): :package: update ${{ matrix.label }} ${{ steps.old-version.outputs.version }} -> ${{ steps.new-version.outputs.version }}"
           body: ${{ steps.pr-body.outputs.body }}
           commit-message: "chore(pkgs): :package: update ${{ matrix.label }} ${{ steps.old-version.outputs.version }} -> ${{ steps.new-version.outputs.version }}"
+          labels: auto-update
           delete-branch: true
+
+      - name: Enable auto-merge
+        if: steps.create-pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash
