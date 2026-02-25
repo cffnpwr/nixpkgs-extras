@@ -125,12 +125,16 @@ jobs:
             echo "Filtering to changed packages: $CHANGED_PACKAGES"
             # Filter matrix to only include changed packages
             # For packages like microsoft-office.excel, check if microsoft-office is in changed_packages
+            # For packages like swiftPackages.sourcekitd-inproc or python3Packages.pybit7z,
+            # also match against any segment of the dotted package name
             matrix=$(echo "$full_matrix" | jq -c --argjson changed "$CHANGED_PACKAGES" '
               .include |= map(
                 select(
                   .package as $pkg |
                   $changed | any(. as $c |
-                    $pkg == $c or ($pkg | startswith($c + "."))
+                    $pkg == $c or
+                    ($pkg | startswith($c + ".")) or
+                    ($pkg | split(".") | last == $c)
                   )
                 )
               )
@@ -148,7 +152,7 @@ jobs:
     needs: generate-matrix
     if: needs.generate-matrix.outputs.has_packages == 'true'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 120
     permissions:
       contents: read
     strategy:
