@@ -1,6 +1,13 @@
 {
   description = "cffnpwr's nixpkgs-extras - custom packages not available in nixpkgs";
 
+  nixConfig = {
+    extra-substituters = [ "https://nix-cache.cffnpwr.dev" ];
+    extra-trusted-public-keys = [
+      "cffnpwr-nixpkgs-extras:dmp2DUGwdqawLCPOsOcRxU/NpCO/qA1jha/8rmoSzvA="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";

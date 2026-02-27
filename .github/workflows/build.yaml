@@ -28,6 +28,10 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+        with:
+          extra-conf: |
+            extra-substituters = https://nix-cache.cffnpwr.dev
+            extra-trusted-public-keys = cffnpwr-nixpkgs-extras:dmp2DUGwdqawLCPOsOcRxU/NpCO/qA1jha/8rmoSzvA=
 
       - name: List all packages
         run: |
@@ -108,6 +112,10 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+        with:
+          extra-conf: |
+            extra-substituters = https://nix-cache.cffnpwr.dev
+            extra-trusted-public-keys = cffnpwr-nixpkgs-extras:dmp2DUGwdqawLCPOsOcRxU/NpCO/qA1jha/8rmoSzvA=
 
       - name: Generate matrix
         id: set-matrix
@@ -152,7 +160,7 @@ jobs:
     needs: generate-matrix
     if: needs.generate-matrix.outputs.has_packages == 'true'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 180
+    timeout-minutes: 300
     permissions:
       contents: read
     strategy:
@@ -169,6 +177,8 @@ jobs:
         with:
           extra-conf: |
             ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
+            extra-substituters = https://nix-cache.cffnpwr.dev
+            extra-trusted-public-keys = cffnpwr-nixpkgs-extras:dmp2DUGwdqawLCPOsOcRxU/NpCO/qA1jha/8rmoSzvA=
 
       - name: Build ${{ matrix.package }} for ${{ matrix.system }}
         env:
@@ -185,7 +195,7 @@ jobs:
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           PACKAGE: ${{ matrix.package }}
-        run: |
+        run: |-
           # Write signing key to temp file (unique path to avoid conflicts between parallel jobs)
           key_file=$(mktemp)
           trap 'rm -f "$key_file"' EXIT
