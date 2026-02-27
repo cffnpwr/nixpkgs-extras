@@ -23,4 +23,4 @@ jobs:
       checks: read
       statuses: read
     with:
-      timeout-minutes: 120
+      timeout-minutes: 180

@@ -152,7 +152,7 @@ jobs:
     needs: generate-matrix
     if: needs.generate-matrix.outputs.has_packages == 'true'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions:
       contents: read
     strategy:
@@ -168,7 +168,6 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
         with:
           extra-conf: |
-            sandbox = false
             ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
 
       - name: Build ${{ matrix.package }} for ${{ matrix.system }}

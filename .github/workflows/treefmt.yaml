@@ -30,7 +30,6 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
         with:
           extra-conf: |
-            sandbox = false
             ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
 
       - name: Run treefmt
