@@ -28,6 +28,10 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+        with:
+          extra-conf: |
+            extra-substituters = https://nix-cache.cffnpwr.dev
+            extra-trusted-public-keys = cffnpwr-nixpkgs-extras:dmp2DUGwdqawLCPOsOcRxU/NpCO/qA1jha/8rmoSzvA=
 
       - name: List all packages
         run: |
@@ -108,6 +112,10 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+        with:
+          extra-conf: |
+            extra-substituters = https://nix-cache.cffnpwr.dev
+            extra-trusted-public-keys = cffnpwr-nixpkgs-extras:dmp2DUGwdqawLCPOsOcRxU/NpCO/qA1jha/8rmoSzvA=
 
       - name: Generate matrix
         id: set-matrix
@@ -125,12 +133,16 @@ jobs:
             echo "Filtering to changed packages: $CHANGED_PACKAGES"
             # Filter matrix to only include changed packages
             # For packages like microsoft-office.excel, check if microsoft-office is in changed_packages
+            # For packages like swiftPackages.sourcekitd-inproc or python3Packages.pybit7z,
+            # also match against any segment of the dotted package name
             matrix=$(echo "$full_matrix" | jq -c --argjson changed "$CHANGED_PACKAGES" '
               .include |= map(
                 select(
                   .package as $pkg |
                   $changed | any(. as $c |
-                    $pkg == $c or ($pkg | startswith($c + "."))
+                    $pkg == $c or
+                    ($pkg | startswith($c + ".")) or
+                    ($pkg | split(".") | last == $c)
                   )
                 )
               )
@@ -148,7 +160,7 @@ jobs:
     needs: generate-matrix
     if: needs.generate-matrix.outputs.has_packages == 'true'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 300
     permissions:
       contents: read
     strategy:
@@ -164,11 +176,47 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
         with:
           extra-conf: |
-            sandbox = false
             ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
+            extra-substituters = https://nix-cache.cffnpwr.dev
+            extra-trusted-public-keys = cffnpwr-nixpkgs-extras:dmp2DUGwdqawLCPOsOcRxU/NpCO/qA1jha/8rmoSzvA=
 
       - name: Build ${{ matrix.package }} for ${{ matrix.system }}
         env:
           PACKAGE: ${{ matrix.package }}
           SYSTEM: ${{ matrix.system }}
         run: nix build ".#$PACKAGE" --print-build-logs --system "$SYSTEM"
+
+      - name: Upload to Cloudflare R2 cache
+        if: github.event_name == 'push'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          NIX_SECRET_KEY: ${{ secrets.NIX_SECRET_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          PACKAGE: ${{ matrix.package }}
+        run: |-
+          # Write signing key to temp file (unique path to avoid conflicts between parallel jobs)
+          key_file=$(mktemp)
+          trap 'rm -f "$key_file"' EXIT
+          echo "$NIX_SECRET_KEY" > "$key_file"
+
+          # List all paths in the closure
+          paths=$(nix path-info --recursive ".#$PACKAGE")
+
+          # Filter out paths already in cache.nixos.org (parallel, limited to CPU core count)
+          num_cpus=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+          paths_to_upload=$(echo "$paths" | xargs -P"$num_cpus" -I{} sh -c \
+            'nix path-info --store https://cache.nixos.org/ "{}" &>/dev/null || echo "{}"')
+
+          if [ -z "$paths_to_upload" ]; then
+            echo "All paths already exist in cache.nixos.org, skipping upload."
+            exit 0
+          fi
+
+          echo "Uploading $(echo "$paths_to_upload" | wc -l | tr -d ' ') paths to R2..."
+          # shellcheck disable=SC2086
+          nix copy \
+            --no-check-sigs \
+            --to "s3://${R2_BUCKET}?endpoint=${R2_ENDPOINT}&region=auto&compression=zstd&parallel-compression=true&secret-key=${key_file}" \
+            $paths_to_upload

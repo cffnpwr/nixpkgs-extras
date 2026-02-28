@@ -44,6 +44,10 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+        with:
+          extra-conf: |
+            extra-substituters = https://nix-cache.cffnpwr.dev
+            extra-trusted-public-keys = cffnpwr-nixpkgs-extras:dmp2DUGwdqawLCPOsOcRxU/NpCO/qA1jha/8rmoSzvA=
 
       - name: Generate matrix
         id: set-matrix
@@ -127,6 +131,8 @@ jobs:
           extra-conf: |
             sandbox = false
             ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
+            extra-substituters = https://nix-cache.cffnpwr.dev
+            extra-trusted-public-keys = cffnpwr-nixpkgs-extras:dmp2DUGwdqawLCPOsOcRxU/NpCO/qA1jha/8rmoSzvA=
 
       - name: Get GitHub App User ID
         id: get-user-id

@@ -22,3 +22,5 @@ jobs:
       pull-requests: read
       checks: read
       statuses: read
+    with:
+      timeout-minutes: 300
