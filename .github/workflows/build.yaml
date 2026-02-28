@@ -181,10 +181,13 @@ jobs:
             extra-trusted-public-keys = cffnpwr-nixpkgs-extras:dmp2DUGwdqawLCPOsOcRxU/NpCO/qA1jha/8rmoSzvA=
 
       - name: Build ${{ matrix.package }} for ${{ matrix.system }}
+        id: build
         env:
           PACKAGE: ${{ matrix.package }}
           SYSTEM: ${{ matrix.system }}
-        run: nix build ".#$PACKAGE" --print-build-logs --system "$SYSTEM"
+        run: |
+          out=$(nix build ".#$PACKAGE" --print-build-logs --system "$SYSTEM" --print-out-paths)
+          echo "out=$out" >> "$GITHUB_OUTPUT"
 
       - name: Upload to Cloudflare R2 cache
         if: github.event_name == 'push'
@@ -194,15 +197,20 @@ jobs:
           NIX_SECRET_KEY: ${{ secrets.NIX_SECRET_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          PACKAGE: ${{ matrix.package }}
+          OUT: ${{ steps.build.outputs.out }}
         run: |-
           # Write signing key to temp file (unique path to avoid conflicts between parallel jobs)
           key_file=$(mktemp)
           trap 'rm -f "$key_file"' EXIT
           echo "$NIX_SECRET_KEY" > "$key_file"
 
-          # List all paths in the closure
-          paths=$(nix path-info --recursive ".#$PACKAGE")
+          # List all paths in the closure using the actual build output path
+          paths=$(nix path-info --recursive "$OUT")
+
+          if [ -z "$paths" ]; then
+            echo "No paths found in closure, skipping upload."
+            exit 0
+          fi
 
           # Filter out paths already in cache.nixos.org (parallel, limited to CPU core count)
           num_cpus=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
