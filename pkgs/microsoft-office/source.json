@@ -1,8 +1,8 @@
 {
   "word": {
-    "version": "16.106.26022219",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Word_16.106.26022219_Updater.pkg",
-    "sha256": "sha256-lT3iWjz/BFk8LZeeHLb2YGbeGC1Frdwb+Qe5AGdkBDE="
+    "version": "16.106.26030211",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Word_16.106.26030211_Updater.pkg",
+    "sha256": "sha256-W1YbOd/rziHZwDiPimfzlwY+/rb8/vvQbA8T8pKlx3I="
   },
   "excel": {
     "version": "16.106.26022219",
@@ -10,19 +10,19 @@
     "sha256": "sha256-QdiYlJpWEEciMj5t724IdOtAEaZVymqAmxUDhU0Qll8="
   },
   "powerpoint": {
-    "version": "16.106.26022219",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_PowerPoint_16.106.26022219_Updater.pkg",
-    "sha256": "sha256-0hyt8k0zi40CUDWFpO6oQeIAceKTSoSXTfdEM/hzLM8="
+    "version": "16.106.26030211",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_PowerPoint_16.106.26030211_Updater.pkg",
+    "sha256": "sha256-/QroIrWZaoo4UHrmzVuf9mNvJDOh4EIUK7R2IpwfTO4="
   },
   "outlook": {
-    "version": "16.106.26022219",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Outlook_16.106.26022219_Updater.pkg",
-    "sha256": "sha256-sVyYvLwtgmqN1/zJKi6FwpE/dRqcmeeo7RI8PCAo0hw="
+    "version": "16.106.26030211",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Outlook_16.106.26030211_Updater.pkg",
+    "sha256": "sha256-M5KR9nEFk5Ti7naum21tybm4AiGEbZT6W27j8shi/AI="
   },
   "onenote": {
-    "version": "16.106.26022219",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_OneNote_16.106.26022219_Updater.pkg",
-    "sha256": "sha256-DPuy3VrF5H/OmfTrv3et4OzT4qb/YQ0vxSyZf6mNNFE="
+    "version": "16.106.26030211",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_OneNote_16.106.26030211_Updater.pkg",
+    "sha256": "sha256-43kq+MY7MkacTISpZMNc5uDJIhmQyvDPq/0c4W44/Uk="
   },
   "onedrive": {
     "version": "24101.0519",
