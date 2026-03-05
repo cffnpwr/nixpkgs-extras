@@ -5,9 +5,9 @@
     "sha256": "sha256-W1YbOd/rziHZwDiPimfzlwY+/rb8/vvQbA8T8pKlx3I="
   },
   "excel": {
-    "version": "16.106.26022219",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.106.26022219_Updater.pkg",
-    "sha256": "sha256-QdiYlJpWEEciMj5t724IdOtAEaZVymqAmxUDhU0Qll8="
+    "version": "16.106.26030211",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.106.26030211_Updater.pkg",
+    "sha256": "sha256-ekHD2p2QV7EBIpn0bYi5sB5QX3s/6sJecrqpQZGKvDQ="
   },
   "powerpoint": {
     "version": "16.106.26030211",
