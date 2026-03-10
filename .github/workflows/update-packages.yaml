@@ -227,6 +227,7 @@ jobs:
           title: "chore(pkgs): :package: update ${{ matrix.label }} ${{ steps.old-version.outputs.version }} -> ${{ steps.new-version.outputs.version }}"
           body: ${{ steps.pr-body.outputs.body }}
           commit-message: "chore(pkgs): :package: update ${{ matrix.label }} ${{ steps.old-version.outputs.version }} -> ${{ steps.new-version.outputs.version }}"
+          author: "${{ steps.app-token.outputs.app-slug }}[bot] <${{ steps.get-user-id.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com>"
           labels: auto-update
           delete-branch: true
 
