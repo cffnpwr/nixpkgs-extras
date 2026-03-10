@@ -176,7 +176,6 @@ jobs:
         uses: DeterminateSystems/determinate-nix-action@131015bad844610e5e6300f8a143bf625d3e74f4 # v3.17.0
         with:
           extra-conf: |
-            ssl-cert-file = /etc/ssl/certs/ca-certificates.crt
             extra-substituters = https://nix-cache.cffnpwr.dev
             extra-trusted-public-keys = cffnpwr-nixpkgs-extras:dmp2DUGwdqawLCPOsOcRxU/NpCO/qA1jha/8rmoSzvA=
 
@@ -204,8 +203,27 @@ jobs:
           trap 'rm -f "$key_file"' EXIT
           echo "$NIX_SECRET_KEY" > "$key_file"
 
-          # List all paths in the closure using the actual build output path
-          paths=$(nix path-info --recursive "$OUT")
+          # List all paths in the runtime closure
+          runtime_paths=$(nix path-info --recursive "$OUT")
+
+          # Also include build-time input paths (inputDrvs outputs + their closures).
+          # This ensures packages built with dontBuild/dontUnpack (e.g. sourcekitd-inproc,
+          # google-japanese-ime, scroll-reverser) upload their build dependencies such as
+          # overridden swift-unwrapped, which would otherwise be missed.
+          drv_path=$(nix path-info --derivation "$OUT")
+          build_input_paths=$(
+            nix derivation show "$drv_path" \
+              | jq -r '.derivations | to_entries[0].value.inputs.drvs | keys[] | "/nix/store/" + .' \
+              | while read -r input_drv; do
+                  nix derivation show "$input_drv" 2>/dev/null \
+                    | jq -r '.derivations | to_entries[0].value.outputs | to_entries[].value.path | "/nix/store/" + .'
+                done \
+              | xargs nix path-info --recursive 2>/dev/null \
+              | sort -u
+          )
+
+          # Merge runtime and build-time paths, deduplicate
+          paths=$(printf '%s\n%s\n' "$runtime_paths" "$build_input_paths" | sort -u)
 
           if [ -z "$paths" ]; then
             echo "No paths found in closure, skipping upload."
