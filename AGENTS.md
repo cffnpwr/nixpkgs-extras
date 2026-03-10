@@ -21,16 +21,19 @@ nix flake check            # Verify flake structure
 ## Task Navigation
 
 ### Creating Modules
+
 **Task**: Add new program or service module
 
 -> Read: `.claude/docs/workflows/module-development.md`
 
 ### Cross-Platform Development
+
 **Task**: Handle platform-specific implementations
 
 -> Read: `.claude/docs/workflows/cross-platform.md`
 
 ### Understanding Architecture
+
 **Task**: Learn internalLib, module patterns
 
 -> Read: `.claude/docs/reference/architecture.md`
@@ -55,13 +58,13 @@ nix flake check            # Verify flake structure
 
 ### Flake Outputs
 
-| Output | Description |
-|--------|-------------|
-| `overlays.default` | Package overlays |
-| `homeModules` | Home Manager modules |
-| `darwinModules` | nix-darwin modules |
-| `nixosModules` | NixOS modules |
-| `packages` | Platform-specific packages |
+| Output             | Description                |
+| ------------------ | -------------------------- |
+| `overlays.default` | Package overlays           |
+| `homeModules`      | Home Manager modules       |
+| `darwinModules`    | nix-darwin modules         |
+| `nixosModules`     | NixOS modules              |
+| `packages`         | Platform-specific packages |
 
 ## Coding Conventions
 
