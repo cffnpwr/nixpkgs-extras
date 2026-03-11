@@ -23,6 +23,8 @@ lib.flatten [
   (mkEntry "discord")
   (mkEntry "spotify")
   (mkEntry "scroll-reverser")
+  (mkEntry "swiftformat")
+  (mkEntry "swiftlint")
   # zen-browser: only included when present in nixpkgs
   (mkEntry "zen-browser")
 ]
