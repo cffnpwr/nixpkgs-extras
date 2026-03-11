@@ -52,14 +52,17 @@
           internalLib = libExports.internalLib;
 
           allPackages = import ./pkgs { inherit pkgs; };
-        in
-        {
-          # Configure pkgs with overlays
-          _module.args.pkgs = import nixpkgs {
+
+          # Plain nixpkgs without overlays, used to evaluate overlay package metadata
+          # (existence checks, meta.platforms) without triggering circular evaluation.
+          prevPkgs = import nixpkgs {
             inherit system;
-            overlays = [ self.overlays.default ];
             config.allowUnfree = true;
           };
+        in
+        {
+          # Configure pkgs with overlays applied on top of prevPkgs
+          _module.args.pkgs = prevPkgs.extend self.overlays.default;
 
           # Legacy packages (all packages from ./pkgs)
           legacyPackages = allPackages;
@@ -94,6 +97,7 @@
               program = import ./scripts/generate-github-actions-matrix.nix {
                 inherit pkgs lib allPackages;
                 flake = self;
+                overlayPackages = import ./pkgs/overlays/matrix.nix prevPkgs;
               };
             };
 
