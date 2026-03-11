@@ -105,6 +105,17 @@
               type = "app";
               program = import ./scripts/update-pkg.nix {
                 inherit pkgs lib allPackages;
+                overlayPackages =
+                  let
+                    matrixEntries = import ./pkgs/overlays/matrix.nix pkgs;
+                    updatableNames = map (e: e.name) (builtins.filter (e: e.updatable) matrixEntries);
+                  in
+                  builtins.listToAttrs (
+                    map (name: {
+                      inherit name;
+                      value = pkgs.${name};
+                    }) updatableNames
+                  );
               };
             };
           };

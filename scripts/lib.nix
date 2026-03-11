@@ -88,17 +88,24 @@ let
           errors = [ "${errorPrefix}: must be an attribute set, list, or derivation, got ${scriptType}" ];
         };
 
-    # Parse updateScript into command list (handles attrset, list, or single derivation)
+    # Parse updateScript into command list (handles attrset, list, or single derivation).
+    # Follows nixpkgs update.nix convention: apply toString to each element (converts
+    # null/false to "") and filter out empty strings, to maintain compatibility with
+    # nixpkgs updateScript format (e.g. generic-update-script uses null/false as placeholders).
     parseUpdateScript =
       updateScript:
-      if lib.isDerivation updateScript then
-        [ updateScript ]
-      else if lib.isAttrs updateScript && updateScript ? command then
-        lib.toList updateScript.command
-      else if lib.isList updateScript then
-        updateScript
-      else
-        [ updateScript ];
+      let
+        raw =
+          if lib.isDerivation updateScript then
+            [ updateScript ]
+          else if lib.isAttrs updateScript && updateScript ? command then
+            lib.toList updateScript.command
+          else if lib.isList updateScript then
+            updateScript
+          else
+            [ updateScript ];
+      in
+      lib.filter (x: x != "") (map toString raw);
 
     # Flatten an attrset of packages into a list of { path, value } records.
     # Nested attrsets (without a `type` attr) are recursed into with "." separators.
