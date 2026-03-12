@@ -61,9 +61,11 @@ jobs:
         run: |
           # Build all packages on push to main
           if [[ "$GH_EVENT_NAME" == "push" ]]; then
-            echo "build_all=true" >> "$GITHUB_OUTPUT"
-            echo "build_overlays=true" >> "$GITHUB_OUTPUT"
-            echo "changed_packages=[]" >> "$GITHUB_OUTPUT"
+            {
+              echo "build_all=true"
+              echo "build_overlays=true"
+              echo "changed_packages=[]"
+            } >> "$GITHUB_OUTPUT"
             echo "Push to main detected, building all packages"
             exit 0
           fi
@@ -75,9 +77,11 @@ jobs:
 
           # Check if flake.nix or flake.lock changed
           if echo "$changed_files" | grep -qE '^flake\.(nix|lock)$'; then
-            echo "build_all=true" >> "$GITHUB_OUTPUT"
-            echo "build_overlays=true" >> "$GITHUB_OUTPUT"
-            echo "changed_packages=[]" >> "$GITHUB_OUTPUT"
+            {
+              echo "build_all=true"
+              echo "build_overlays=true"
+              echo "changed_packages=[]"
+            } >> "$GITHUB_OUTPUT"
             echo "flake.nix or flake.lock changed, building all packages"
             exit 0
           fi
