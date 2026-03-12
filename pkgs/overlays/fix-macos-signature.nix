@@ -17,7 +17,7 @@ let
 
   # Generate attribute set of signature-fixed packages
   signatureFixedPackages = builtins.listToAttrs (
-    builtins.map (name: {
+    map (name: {
       inherit name;
       value = fixMacAppSignature name;
     }) fixMacAppTargets

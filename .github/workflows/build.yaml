@@ -45,6 +45,7 @@ jobs:
       contents: read
     outputs:
       build_all: ${{ steps.detect.outputs.build_all }}
+      build_overlays: ${{ steps.detect.outputs.build_overlays }}
       changed_packages: ${{ steps.detect.outputs.changed_packages }}
     steps:
       - name: Checkout
@@ -60,8 +61,11 @@ jobs:
         run: |
           # Build all packages on push to main
           if [[ "$GH_EVENT_NAME" == "push" ]]; then
-            echo "build_all=true" >> "$GITHUB_OUTPUT"
-            echo "changed_packages=[]" >> "$GITHUB_OUTPUT"
+            {
+              echo "build_all=true"
+              echo "build_overlays=true"
+              echo "changed_packages=[]"
+            } >> "$GITHUB_OUTPUT"
             echo "Push to main detected, building all packages"
             exit 0
           fi
@@ -73,14 +77,26 @@ jobs:
 
           # Check if flake.nix or flake.lock changed
           if echo "$changed_files" | grep -qE '^flake\.(nix|lock)$'; then
-            echo "build_all=true" >> "$GITHUB_OUTPUT"
-            echo "changed_packages=[]" >> "$GITHUB_OUTPUT"
+            {
+              echo "build_all=true"
+              echo "build_overlays=true"
+              echo "changed_packages=[]"
+            } >> "$GITHUB_OUTPUT"
             echo "flake.nix or flake.lock changed, building all packages"
             exit 0
           fi
 
+          # Check if pkgs/overlays/ changed
+          if echo "$changed_files" | grep -qE '^pkgs/overlays/'; then
+            build_overlays=true
+          else
+            build_overlays=false
+          fi
+
           # Extract changed package names from pkgs/<package-name>/
           changed_packages=$(echo "$changed_files" | grep -oE '^pkgs/[^/]+/' | sed 's|pkgs/||; s|/$||' | grep -v '^overlays$' | sort -u)
+
+          echo "build_overlays=$build_overlays" >> "$GITHUB_OUTPUT"
 
           if [[ -z "$changed_packages" ]]; then
             echo "build_all=false" >> "$GITHUB_OUTPUT"
@@ -121,6 +137,7 @@ jobs:
         id: set-matrix
         env:
           BUILD_ALL: ${{ needs.detect-changes.outputs.build_all }}
+          BUILD_OVERLAYS: ${{ needs.detect-changes.outputs.build_overlays }}
           CHANGED_PACKAGES: ${{ needs.detect-changes.outputs.changed_packages }}
         run: |
           # Get full matrix from Nix
@@ -130,20 +147,26 @@ jobs:
             echo "Building all packages"
             matrix="$full_matrix"
           else
-            echo "Filtering to changed packages: $CHANGED_PACKAGES"
+            echo "Filtering to changed packages: $CHANGED_PACKAGES (build_overlays=$BUILD_OVERLAYS)"
             # Filter matrix to only include changed packages
             # For packages like microsoft-office.excel, check if microsoft-office is in changed_packages
             # For packages like swiftPackages.sourcekitd-inproc or python3Packages.pybit7z,
             # also match against any segment of the dotted package name
-            matrix=$(echo "$full_matrix" | jq -c --argjson changed "$CHANGED_PACKAGES" '
+            # When build_overlays=true, also include all overlay packages (updatable=false)
+            matrix=$(echo "$full_matrix" | jq -c \
+              --argjson changed "$CHANGED_PACKAGES" \
+              --argjson build_overlays "$BUILD_OVERLAYS" '
               .include |= map(
                 select(
                   .package as $pkg |
-                  $changed | any(. as $c |
+                  # Include overlay packages when build_overlays is true
+                  ($build_overlays and (.updatable == false)) or
+                  # Include regular packages that match changed package names
+                  ($changed | any(. as $c |
                     $pkg == $c or
                     ($pkg | startswith($c + ".")) or
                     ($pkg | split(".") | last == $c)
-                  )
+                  ))
                 )
               )
             ')

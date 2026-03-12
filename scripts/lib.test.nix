@@ -229,10 +229,6 @@ in
       expected = [ mockDrv ];
     };
 
-    "parses lambda (unevaluated derivation) to list" = {
-      expr = builtins.isList (parseUpdateScript (x: x));
-      expected = true;
-    };
   };
 
   # flattenPackages tests

@@ -52,25 +52,43 @@
           internalLib = libExports.internalLib;
 
           allPackages = import ./pkgs { inherit pkgs; };
-        in
-        {
-          # Configure pkgs with overlays
-          _module.args.pkgs = import nixpkgs {
+
+          # Plain nixpkgs without overlays, used to evaluate overlay package metadata
+          # (existence checks, meta.platforms) without triggering circular evaluation.
+          prevPkgs = import nixpkgs {
             inherit system;
-            overlays = [ self.overlays.default ];
             config.allowUnfree = true;
           };
+        in
+        {
+          # Configure pkgs with overlays applied on top of prevPkgs
+          _module.args.pkgs = prevPkgs.extend self.overlays.default;
 
           # Legacy packages (all packages from ./pkgs)
           legacyPackages = allPackages;
 
           # Packages (derivations only; excludes attrset packages like microsoft-office)
           # Also filter out packages not supported on the current system
-          packages = lib.filterAttrs (
-            _: drv:
-            lib.isDerivation drv
-            && (!(drv ? meta.platforms) || lib.meta.availableOn pkgs.stdenv.hostPlatform drv)
-          ) allPackages;
+          # Includes overlay packages (e.g. discord, spotify, swiftformat) in addition to
+          # packages defined in pkgs/
+          packages =
+            (lib.filterAttrs (
+              _: drv:
+              lib.isDerivation drv
+              && (!(drv ? meta.platforms) || lib.meta.availableOn pkgs.stdenv.hostPlatform drv)
+            ) allPackages)
+            // (builtins.listToAttrs (
+              map
+                (e: {
+                  name = e.name;
+                  value = pkgs.${e.name};
+                })
+                (
+                  builtins.filter (e: lib.meta.availableOn pkgs.stdenv.hostPlatform pkgs.${e.name}) (
+                    import ./pkgs/overlays/matrix.nix pkgs
+                  )
+                )
+            ));
 
           # Formatter
           formatter = pkgs.nixfmt;
@@ -94,6 +112,7 @@
               program = import ./scripts/generate-github-actions-matrix.nix {
                 inherit pkgs lib allPackages;
                 flake = self;
+                overlayPackages = import ./pkgs/overlays/matrix.nix prevPkgs;
               };
             };
 
@@ -101,6 +120,17 @@
               type = "app";
               program = import ./scripts/update-pkg.nix {
                 inherit pkgs lib allPackages;
+                overlayPackages =
+                  let
+                    matrixEntries = import ./pkgs/overlays/matrix.nix pkgs;
+                    updatableNames = map (e: e.name) (builtins.filter (e: e.updatable) matrixEntries);
+                  in
+                  builtins.listToAttrs (
+                    map (name: {
+                      inherit name;
+                      value = pkgs.${name};
+                    }) updatableNames
+                  );
               };
             };
           };

@@ -3,6 +3,7 @@
   lib,
   flake,
   allPackages,
+  overlayPackages,
 }:
 let
   scriptsLib = import ./lib.nix { inherit lib; };
@@ -61,9 +62,32 @@ let
     # flatten and filter out packages without os
     lib.filter (item: item.os != null) (lib.flatten systemPackages);
 
+  # collect overlay packages across all supported systems
+  collectOverlayPackages = lib.flatten (
+    lib.mapAttrsToList (
+      system: _:
+      lib.flatten (
+        map (
+          entry:
+          let
+            os = systemToRunner.${system} or null;
+            isTargetSystem = lib.elem system entry.platforms;
+          in
+          lib.optional (os != null && isTargetSystem) {
+            inherit system;
+            package = entry.name;
+            inherit os;
+            updatable = false;
+            updateGroup = null;
+          }
+        ) overlayPackages
+      )
+    ) flake.legacyPackages
+  );
+
   # convert to GitHub Actions matrix format
   matrix = {
-    include = collectPackages;
+    include = collectPackages ++ collectOverlayPackages;
   };
 
   # convert to JSON

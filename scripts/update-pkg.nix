@@ -15,6 +15,7 @@
   pkgs,
   lib,
   allPackages,
+  overlayPackages ? { },
 }:
 let
   scriptsLib = import ./lib.nix { inherit lib; };
@@ -35,23 +36,25 @@ let
       gnused
     ];
 
-  flatPkgs = flattenPackages "" allPackages;
+  combinedPackages = allPackages // overlayPackages;
+
+  flatPkgs = flattenPackages "" combinedPackages;
 
   flatPkgPaths = map (x: x.path) flatPkgs;
   pkgsWithUpdateScript = lib.filter (
-    p: (resolvePkg allPackages p) ? passthru.updateScript
+    p: (resolvePkg combinedPackages p) ? passthru.updateScript
   ) flatPkgPaths;
 
   # Collect validation results for all packages with updateScript
   validationResults = builtins.listToAttrs (
     map (pkg: {
       name = pkg;
-      value = validateUpdateScript pkg (resolvePkg allPackages pkg).passthru.updateScript;
+      value = validateUpdateScript pkg (resolvePkg combinedPackages pkg).passthru.updateScript;
     }) pkgsWithUpdateScript
   );
 
   # Separate valid and invalid packages
-  pkgList = getUpdatablePackages allPackages;
+  pkgList = getUpdatablePackages combinedPackages;
   _invalidPkgs = lib.filter (pkg: !validationResults.${pkg}.isValid) pkgsWithUpdateScript;
 
   # Generate warning messages for invalid packages (evaluated at build time)
@@ -64,7 +67,7 @@ let
   getValidatedCmdList =
     pkg:
     let
-      updateScript = (resolvePkg allPackages pkg).passthru.updateScript;
+      updateScript = (resolvePkg combinedPackages pkg).passthru.updateScript;
       validationResult = validateUpdateScript pkg updateScript;
     in
     if !validationResult.isValid then
@@ -88,7 +91,7 @@ let
   mkCaseEntry =
     pkg:
     let
-      pkgInfo = resolvePkg allPackages pkg;
+      pkgInfo = resolvePkg combinedPackages pkg;
       updateCmd = getUpdateScriptCmd pkg;
     in
     lib.concatStringsSep "\n" [
@@ -108,7 +111,7 @@ let
       addPkg =
         acc: pkg:
         let
-          drv = resolvePkg allPackages pkg;
+          drv = resolvePkg combinedPackages pkg;
           label = drv.meta.updateGroup or pkg;
         in
         acc // { ${label} = (acc.${label} or [ ]) ++ [ pkg ]; };
@@ -144,7 +147,7 @@ let
       memberCmds = lib.concatMapStringsSep "\n" (
         pkg:
         let
-          pkgInfo = resolvePkg allPackages pkg;
+          pkgInfo = resolvePkg combinedPackages pkg;
           updateCmd = getUpdateScriptCmd pkg;
         in
         lib.concatStringsSep "\n" [
