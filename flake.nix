@@ -69,11 +69,26 @@
 
           # Packages (derivations only; excludes attrset packages like microsoft-office)
           # Also filter out packages not supported on the current system
-          packages = lib.filterAttrs (
-            _: drv:
-            lib.isDerivation drv
-            && (!(drv ? meta.platforms) || lib.meta.availableOn pkgs.stdenv.hostPlatform drv)
-          ) allPackages;
+          # Includes overlay packages (e.g. discord, spotify, swiftformat) in addition to
+          # packages defined in pkgs/
+          packages =
+            (lib.filterAttrs (
+              _: drv:
+              lib.isDerivation drv
+              && (!(drv ? meta.platforms) || lib.meta.availableOn pkgs.stdenv.hostPlatform drv)
+            ) allPackages)
+            // (builtins.listToAttrs (
+              map
+                (e: {
+                  name = e.name;
+                  value = pkgs.${e.name};
+                })
+                (
+                  builtins.filter (e: lib.meta.availableOn pkgs.stdenv.hostPlatform pkgs.${e.name}) (
+                    import ./pkgs/overlays/matrix.nix pkgs
+                  )
+                )
+            ));
 
           # Formatter
           formatter = pkgs.nixfmt;
