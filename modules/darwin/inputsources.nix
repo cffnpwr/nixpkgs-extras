@@ -1,7 +1,14 @@
 # Nix module to manage macOS third-party input sources.
 #
-# This module provides options for configuring third-party input sources on macOS
-# by modifying the com.apple.inputsources plist file using the defaults command.
+# This module provides options for configuring third-party input sources on macOS.
+#
+# NOTE: The `defaults write com.apple.inputsources` command fails because cfprefsd
+# enforces entitlement-based access control on this domain. Only processes with the
+# private entitlement `com.apple.private.security.storage.inputsources` (currently
+# only Apple's KeyboardSettings.appex) can write to this domain.
+# The activation script is temporarily disabled pending a proper CLI tool
+# ([cffnpwr/darwin-ism](https://github.com/cffnpwr/darwin-ism)) that uses
+# TISEnableInputSource API to manage input sources.
 #
 # This module is inspired by:
 # - https://github.com/natsukium/dotfiles/blob/main/modules/darwin/inputsources.nix
@@ -23,22 +30,6 @@ let
     literalExpression
     mkIf
     ;
-  inherit (lib.generators) toPlist;
-  inherit (lib.strings) escapeShellArg;
-
-  user = config.system.primaryUser;
-
-  # Similar to nix-darwin's writeUserDefault function
-  # Converts Nix values to plist format and writes using defaults command
-  writeUserDefault =
-    domain: key: value:
-    let
-      plistValue = toPlist { escape = true; } value;
-      cmd = "defaults write ${domain} ${escapeShellArg key} ${escapeShellArg plistValue}";
-    in
-    ''
-      launchctl asuser "$(id -u -- "${user}")" sudo --user="${user}" -- ${cmd}
-    '';
 in
 {
   options.system.defaults.inputsources = {
@@ -85,14 +76,10 @@ in
     };
   };
 
-  config = mkIf (pkgs.stdenv.isDarwin && cfg.AppleEnabledThirdPartyInputSources != null) {
-    system.activationScripts.userDefaults.text = ''
-      echo "Configuring third-party input sources..." >&2
-      ${writeUserDefault "com.apple.inputsources" "AppleEnabledThirdPartyInputSources"
-        cfg.AppleEnabledThirdPartyInputSources
-      }
-    '';
-  };
+  # TODO: Re-enable activation script once [cffnpwr/darwin-ism](https://github.com/cffnpwr/darwin-ism) CLI tool is available.
+  # The tool will use TISEnableInputSource API to manage input sources without
+  # requiring the private entitlement `com.apple.private.security.storage.inputsources`.
+  config = mkIf (pkgs.stdenv.isDarwin && cfg.AppleEnabledThirdPartyInputSources != null) { };
 
   meta.maintainers = with lib.maintainers; [ cffnpwr ];
 }

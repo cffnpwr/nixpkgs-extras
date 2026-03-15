@@ -37,7 +37,7 @@ NIX_BINTOOLS='/nix/store/7bh1gmqk0q7nisjyz6kgrg9qzxxs2346-cctools-binutils-darwi
 export NIX_BINTOOLS
 NIX_BINTOOLS_WRAPPER_TARGET_HOST_arm64_apple_darwin='1'
 export NIX_BINTOOLS_WRAPPER_TARGET_HOST_arm64_apple_darwin
-NIX_BUILD_CORES='8'
+NIX_BUILD_CORES='10'
 export NIX_BUILD_CORES
 NIX_CC='/nix/store/z0dmrxbgqi98f7n8ljza91y5qazdyhcp-clang-wrapper-21.1.8'
 export NIX_CC
