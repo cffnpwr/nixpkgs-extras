@@ -34,4 +34,6 @@ lib.flatten [
   (mkEntry "swiftlint" { updatable = true; })
   # zen-browser: only included when present in nixpkgs
   (mkEntry "zen-browser" { })
+  # zed-editor: Darwin-only wrapper to fix CLI hanging via nix store path
+  (mkEntry "zed-editor" { })
 ]
