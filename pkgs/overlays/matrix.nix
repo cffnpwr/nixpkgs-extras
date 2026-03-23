@@ -32,6 +32,7 @@ lib.flatten [
   (mkEntry "scroll-reverser" { updatable = true; })
   (mkEntry "swiftformat" { updatable = true; })
   (mkEntry "swiftlint" { updatable = true; })
+  (mkEntry "lefthook" { updatable = true; })
   (mkEntry "zed-editor" { })
   # zen-browser: only included when present in nixpkgs
   (mkEntry "zen-browser" { })
