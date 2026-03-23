@@ -11,6 +11,10 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    go-overlay = {
+      url = "github:purpleclay/go-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nix-unit = {
       url = "github:nix-community/nix-unit";
       inputs = {
@@ -25,6 +29,7 @@
       self,
       nixpkgs,
       flake-parts,
+      go-overlay,
       nix-unit,
       ...
     }:
@@ -158,10 +163,13 @@
           # Overlays
           overlays.default =
             final: prev:
+            let
+              prevWithGo = prev // (go-overlay.overlays.default final prev);
+            in
             import ./pkgs {
               pkgs = final;
             }
-            // (import ./pkgs/overlays final prev)
+            // (import ./pkgs/overlays final prevWithGo)
             // {
               lib = prev.lib.extend (
                 _: _: {
