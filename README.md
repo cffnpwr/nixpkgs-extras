@@ -30,6 +30,8 @@ Packages available via `overlays.default`:
 | `scroll-reverser` | [Scroll Reverser](https://pilotmoon.com/scrollreverser/)   |
 | `swiftformat`     | [SwiftFormat](https://github.com/nicklockwood/SwiftFormat) |
 | `swiftlint`       | [SwiftLint](https://github.com/realm/SwiftLint)            |
+| `treefmt`         | [Treefmt](https://github.com/numtide/treefmt)              |
+| `yamlfmt`         | [Yamlfmt](https://github.com/google/yamlfmt)               |
 | `zed-editor`      | [Zed](https://zed.dev)                                     |
 
 ### Modules
