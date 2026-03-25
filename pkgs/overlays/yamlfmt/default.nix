@@ -33,6 +33,9 @@ let
       inherit src;
       inherit (data) version;
       vendorHash = data.vendorHash;
+      preBuild = ''
+        ldflags+=" -X=main.commit=${data.commit}"
+      '';
       nativeBuildInputs =
         map (p: if lib.isDerivation p && p.pname or "" == "go" then go else p) (
           oldAttrs.nativeBuildInputs or [ ]
@@ -92,6 +95,21 @@ in
           exit 0
         fi
 
+        # Fetch commit hash for the tag
+        commit=$(
+          curl -sSfL "https://api.github.com/repos/google/yamlfmt/git/ref/tags/v''${newVersion}" \
+            | jq -r 'if .object.type == "commit" then .object.sha else "" end'
+        )
+        # If the tag is annotated, resolve to the commit it points to
+        if [ -z "$commit" ]; then
+          commit=$(
+            curl -sSfL "https://api.github.com/repos/google/yamlfmt/git/ref/tags/v''${newVersion}" \
+              | jq -r '.object.url' \
+              | xargs curl -sSfL \
+              | jq -r '.object.sha'
+          )
+        fi
+
         # Compute source hash and store path
         echo "Updating: $manifestFile"
         prefetchResult=$(nix flake prefetch "github:google/yamlfmt/v''${newVersion}" --json)
@@ -110,7 +128,8 @@ in
           --arg version "$newVersion" \
           --arg hash "$hash" \
           --arg vendorHash "$vendorHash" \
-          '{version: $version, hash: $hash, vendorHash: $vendorHash}' \
+          --arg commit "$commit" \
+          '{version: $version, hash: $hash, vendorHash: $vendorHash, commit: $commit}' \
           > "$manifestFile"
 
       '';

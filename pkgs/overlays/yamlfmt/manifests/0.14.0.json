@@ -1,5 +1,6 @@
 {
   "version": "0.14.0",
   "hash": "sha256-l9PtVaAKjtP9apTrKCkC1KDR0IXqLqinpj1onzSrPnI=",
-  "vendorHash": "sha256-lsNldfacBoeTPyhkjyDZhI5YR+kDke0TarfG/KdjEOg="
+  "vendorHash": "sha256-lsNldfacBoeTPyhkjyDZhI5YR+kDke0TarfG/KdjEOg=",
+  "commit": "1c3f20096dc14b72bdea6829bdc7c869cb1ba6e4"
 }
