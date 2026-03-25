@@ -33,6 +33,8 @@ lib.flatten [
   (mkEntry "swiftformat" { updatable = true; })
   (mkEntry "swiftlint" { updatable = true; })
   (mkEntry "lefthook" { updatable = true; })
+  (mkEntry "yamlfmt" { updatable = true; })
+  (mkEntry "treefmt" { updatable = true; })
   (mkEntry "zed-editor" { })
   # zen-browser: only included when present in nixpkgs
   (mkEntry "zen-browser" { })
