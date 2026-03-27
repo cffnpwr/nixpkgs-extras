@@ -5,9 +5,9 @@
     "sha256": "sha256-gFKfSUMxs/3gxGMKmqLmbg7SHYF3MBy7dTGfFKt4gyA="
   },
   "excel": {
-    "version": "16.107.26031524",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.107.26031524_Updater.pkg",
-    "sha256": "sha256-Tl8qDgfgfU7JUMbiaVnWMOKEPmk2LdsLLLxCM+IT6rQ="
+    "version": "16.107.26032211",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.107.26032211_Updater.pkg",
+    "sha256": "sha256-vV7/NaAENbgNYchhg2IqWYEFxc/e2nv1praA3WqCxY0="
   },
   "powerpoint": {
     "version": "16.107.26032211",
@@ -20,9 +20,9 @@
     "sha256": "sha256-g5RC316ruXg78KXUUtPiUN+Ql7s+fvM+mjKKqEG4WmE="
   },
   "onenote": {
-    "version": "16.107.26031524",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_OneNote_16.107.26031524_Updater.pkg",
-    "sha256": "sha256-j8QQSTAesLdku0TztIke2wvjInKaqUW2wPkjmCg/w7k="
+    "version": "16.107.26032211",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_OneNote_16.107.26032211_Updater.pkg",
+    "sha256": "sha256-4rvfNXnO6i6rPeUwvARw9EMij0BmamqJKF6ydJNQNiM="
   },
   "onedrive": {
     "version": "24101.0519",
