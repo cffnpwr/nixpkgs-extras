@@ -208,7 +208,8 @@ jobs:
           PACKAGE: ${{ matrix.package }}
           SYSTEM: ${{ matrix.system }}
         run: |
-          out=$(nix build ".#$PACKAGE" --print-build-logs --system "$SYSTEM" --print-out-paths)
+          nix build ".#$PACKAGE" --print-build-logs --system "$SYSTEM" --out-link /tmp/nix-result
+          out=$(readlink -f /tmp/nix-result)
           echo "out=$out" >> "$GITHUB_OUTPUT"
 
       - name: Upload to Cloudflare R2 cache
@@ -226,14 +227,14 @@ jobs:
           trap 'rm -f "$key_file"' EXIT
           echo "$NIX_SECRET_KEY" > "$key_file"
 
-          # List all paths in the runtime closure
-          runtime_paths=$(nix path-info --recursive "$OUT")
+          # List all paths in the runtime closure via the out-link (guaranteed to be in local store)
+          runtime_paths=$(nix path-info --recursive /tmp/nix-result)
 
           # Also include build-time input paths (inputDrvs outputs + their closures).
           # This ensures packages built with dontBuild/dontUnpack (e.g. sourcekitd-inproc,
           # google-japanese-ime, scroll-reverser) upload their build dependencies such as
           # overridden swift-unwrapped, which would otherwise be missed.
-          drv_path=$(nix path-info --derivation "$OUT")
+          drv_path=$(nix path-info --derivation /tmp/nix-result)
           build_input_paths=$(
             nix derivation show "$drv_path" \
               | jq -r '.derivations | to_entries[0].value.inputs.drvs | keys[] | "/nix/store/" + .' \
