@@ -15,9 +15,9 @@
     "sha256": "sha256-TU/3aFCB7e2yxGbDSeYasvwlwFXH/lQFNF7fyoE6FSQ="
   },
   "outlook": {
-    "version": "16.107.26032211",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Outlook_16.107.26032211_Updater.pkg",
-    "sha256": "sha256-g5RC316ruXg78KXUUtPiUN+Ql7s+fvM+mjKKqEG4WmE="
+    "version": "16.107.26032814",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Outlook_16.107.26032814_Updater.pkg",
+    "sha256": "sha256-XA8RjfWbgSqJK7Uyn2w4HnQJdm0uO0pIukx60ZiuUIU="
   },
   "onenote": {
     "version": "16.107.26032211",
