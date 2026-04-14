@@ -1,28 +1,28 @@
 {
   "word": {
-    "version": "16.107.26040410",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Word_16.107.26040410_Updater.pkg",
-    "sha256": "sha256-9DzlQBF3ZI/AWwk/acYOGNt8Xn6leY9zObPmak6Ir1o="
+    "version": "16.108.26041219",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Word_16.108.26041219_Updater.pkg",
+    "sha256": "sha256-GnKeO2Rj+CbJjMMMdhlneX8qJiFHouL5dIzcTKJ3DtM="
   },
   "excel": {
-    "version": "16.107.26040410",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.107.26040410_Updater.pkg",
-    "sha256": "sha256-8YUaHPtFmBcUEFFnJDvvDy4BiEhQQ7WZ7MvZsDqOkPY="
+    "version": "16.108.26041219",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.108.26041219_Updater.pkg",
+    "sha256": "sha256-T8X+NE4Fy3Aaio37obyY4tzswHV/KVIIxQG6isoBZiA="
   },
   "powerpoint": {
-    "version": "16.107.26040410",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_PowerPoint_16.107.26040410_Updater.pkg",
-    "sha256": "sha256-oSoAXQKzHkGF05LWCqjw5f7kPXrAcoKfCYiSm1RwIt8="
+    "version": "16.108.26041219",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_PowerPoint_16.108.26041219_Updater.pkg",
+    "sha256": "sha256-UZsapTNkw+VhyVPshSJ5o8+E+vOvioxNtU9/s711Za0="
   },
   "outlook": {
-    "version": "16.107.26040410",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Outlook_16.107.26040410_Updater.pkg",
-    "sha256": "sha256-UBzpoQ8O+UnNZJpy6bVaN0+RM27eMTwcKhORYDuf63U="
+    "version": "16.108.26041219",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Outlook_16.108.26041219_Updater.pkg",
+    "sha256": "sha256-vASBjevH+0aO7jKMVBDgvnCm8cIkl+an2PD7atoQPEA="
   },
   "onenote": {
-    "version": "16.107.26040410",
-    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_OneNote_16.107.26040410_Updater.pkg",
-    "sha256": "sha256-Ysg80nfuCvDSylOBesxInrdeC+R8eBzkgIpmVJHbXnk="
+    "version": "16.108.26041219",
+    "url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_OneNote_16.108.26041219_Updater.pkg",
+    "sha256": "sha256-irJE5PSp6gsrIhyFpIsOz+y+Utt/aa4Dp4kSGG+Q9so="
   },
   "onedrive": {
     "version": "24101.0519",
