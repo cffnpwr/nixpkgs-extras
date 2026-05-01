@@ -30,8 +30,6 @@ lib.flatten [
   (mkEntry "discord" { })
   (mkEntry "spotify" { })
   (mkEntry "scroll-reverser" { updatable = true; })
-  (mkEntry "swiftformat" { updatable = true; })
-  (mkEntry "swiftlint" { updatable = true; })
   (mkEntry "lefthook" { updatable = true; })
   (mkEntry "yamlfmt" { updatable = true; })
   (mkEntry "treefmt" { updatable = true; })
