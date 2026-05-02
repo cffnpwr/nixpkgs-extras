@@ -261,6 +261,19 @@ jobs:
           paths_to_upload=$(echo "$paths" | xargs -P"$num_cpus" -I{} sh -c \
             'nix path-info --store https://cache.nixos.org/ "{}" >/dev/null 2>&1 || echo "{}"')
 
+          # Regression guard: detect filter inversion (e.g. dash &> regression).
+          # All packages in this flake are either custom or overlay-modified, so the
+          # build output should never be present in cache.nixos.org. If the filter
+          # leaves the build output out of paths_to_upload while it's also not in
+          # cache.nixos.org, the filter is misbehaving.
+          out_path=$(readlink -f "$RESULT_LINK")
+          if nix path-info --store https://cache.nixos.org/ "$out_path" >/dev/null 2>&1; then
+            echo "::warning::Build output $out_path is unexpectedly in cache.nixos.org"
+          elif ! printf '%s\n' "$paths_to_upload" | grep -qFx "$out_path"; then
+            echo "::error::Build output $out_path missing from paths_to_upload despite not being in cache.nixos.org. Cache filter likely regressed (see issue #86)."
+            exit 1
+          fi
+
           if [ -z "$paths_to_upload" ]; then
             echo "All paths already exist in cache.nixos.org"
             echo "paths_to_upload=" >> "$GITHUB_OUTPUT"
