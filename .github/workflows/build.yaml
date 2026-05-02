@@ -75,14 +75,14 @@ jobs:
           echo "Changed files:"
           echo "$changed_files"
 
-          # Check if flake.nix or flake.lock changed
-          if echo "$changed_files" | grep -qE '^flake\.(nix|lock)$'; then
+          # Check if flake.nix, flake.lock, or build.yaml changed
+          if echo "$changed_files" | grep -qE '^(flake\.(nix|lock)|\.github/workflows/build\.yaml)$'; then
             {
               echo "build_all=true"
               echo "build_overlays=true"
               echo "changed_packages=[]"
             } >> "$GITHUB_OUTPUT"
-            echo "flake.nix or flake.lock changed, building all packages"
+            echo "flake.nix, flake.lock, or build.yaml changed, building all packages"
             exit 0
           fi
 
@@ -208,68 +208,89 @@ jobs:
           PACKAGE: ${{ matrix.package }}
           SYSTEM: ${{ matrix.system }}
         run: |
+          set -euo pipefail
           tmpdir=$(mktemp -d)
           nix build ".#$PACKAGE" --print-build-logs --system "$SYSTEM" --out-link "$tmpdir/result"
           out=$(readlink -f "$tmpdir/result")
           echo "out=$out" >> "$GITHUB_OUTPUT"
           echo "tmpdir=$tmpdir" >> "$GITHUB_OUTPUT"
 
-      - name: Upload to Cloudflare R2 cache
-        if: github.event_name == 'push'
+      - name: Collect paths to upload
+        id: collect
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          NIX_SECRET_KEY: ${{ secrets.NIX_SECRET_KEY }}
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
           RESULT_LINK: ${{ steps.build.outputs.tmpdir }}/result
         run: |-
-          # Write signing key and clean up tmpdir (including out-link GC root) on exit
-          key_file=$(mktemp)
-          trap 'rm -f "$key_file"; rm -rf "$(dirname "$RESULT_LINK")"' EXIT
-          echo "$NIX_SECRET_KEY" > "$key_file"
+          set -euo pipefail
 
-          # List all paths in the runtime closure via the out-link (guaranteed to be in local store)
+          # Runtime closure of the build output
           runtime_paths=$(nix path-info --recursive "$RESULT_LINK")
 
           # Also include build-time input paths (inputDrvs outputs + their closures).
           # This ensures packages built with dontBuild/dontUnpack (e.g. sourcekitd-inproc,
           # google-japanese-ime, scroll-reverser) upload their build dependencies such as
           # overridden swift-unwrapped, which would otherwise be missed.
+          # Build inputs are best-effort: tolerate missing/invalid paths.
           drv_path=$(nix path-info --derivation "$RESULT_LINK")
           build_input_paths=$(
             nix derivation show "$drv_path" \
               | jq -r '.derivations | to_entries[0].value.inputs.drvs | keys[] | "/nix/store/" + .' \
               | while read -r input_drv; do
                   nix derivation show "$input_drv" 2>/dev/null \
-                    | jq -r '.derivations | to_entries[0].value.outputs | to_entries[].value.path | "/nix/store/" + .'
+                    | jq -r '.derivations | to_entries[0].value.outputs | to_entries[].value.path | "/nix/store/" + .' \
+                    || true
                 done \
-              | xargs nix path-info --recursive 2>/dev/null \
+              | { xargs nix path-info --recursive 2>/dev/null || true; } \
               | sort -u
           )
 
-          # Merge runtime and build-time paths, deduplicate
-          paths=$(printf '%s\n%s\n' "$runtime_paths" "$build_input_paths" | sort -u)
+          paths=$(printf '%s\n%s\n' "$runtime_paths" "$build_input_paths" | sort -u | grep -v '^$' || true)
 
           if [ -z "$paths" ]; then
-            echo "No paths found in closure, skipping upload."
+            echo "No paths found in closure"
+            echo "paths_to_upload=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Filter out paths already in cache.nixos.org (parallel, limited to CPU core count)
+          # Filter out paths already in cache.nixos.org. Use POSIX `>/dev/null 2>&1`
+          # because Ubuntu's /bin/sh is dash, which interprets the bash-only `&>/dev/null`
+          # as `& >/dev/null` (background + null-redirect). With the bash-only form the
+          # filter inverts: nixpkgs-overlay packages such as yamlfmt/treefmt (whose hashes
+          # differ from the upstream paths in cache.nixos.org) get dropped from the upload
+          # set instead of being kept. (issue #86)
           num_cpus=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
           paths_to_upload=$(echo "$paths" | xargs -P"$num_cpus" -I{} sh -c \
-            'nix path-info --store https://cache.nixos.org/ "{}" &>/dev/null || echo "{}"')
+            'nix path-info --store https://cache.nixos.org/ "{}" >/dev/null 2>&1 || echo "{}"')
 
           if [ -z "$paths_to_upload" ]; then
-            echo "All paths already exist in cache.nixos.org, skipping upload."
+            echo "All paths already exist in cache.nixos.org"
+            echo "paths_to_upload=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          echo "Uploading $(echo "$paths_to_upload" | wc -l | tr -d ' ') paths to R2..."
+          num_paths=$(echo "$paths_to_upload" | wc -l | tr -d ' ')
+          echo "Found $num_paths paths to upload to R2."
+          paths_to_upload_oneline=$(echo "$paths_to_upload" | tr '\n' ' ')
+          echo "paths_to_upload=$paths_to_upload_oneline" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to Cloudflare R2 cache
+        if: github.event_name == 'push' && steps.collect.outputs.paths_to_upload != ''
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          NIX_SECRET_KEY: ${{ secrets.NIX_SECRET_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          PATHS_TO_UPLOAD: ${{ steps.collect.outputs.paths_to_upload }}
+          BUILD_TMPDIR: ${{ steps.build.outputs.tmpdir }}
+        run: |-
+          set -euo pipefail
+          key_file=$(mktemp)
+          trap 'rm -f "$key_file"; rm -rf "$BUILD_TMPDIR"' EXIT
+          echo "$NIX_SECRET_KEY" > "$key_file"
+
+          echo "Uploading to R2..."
           # shellcheck disable=SC2086
           nix copy \
             --no-check-sigs \
-            --substitute \
             --to "s3://${R2_BUCKET}?endpoint=${R2_ENDPOINT}&region=auto&compression=zstd&parallel-compression=true&secret-key=${key_file}" \
-            $paths_to_upload
+            $PATHS_TO_UPLOAD
