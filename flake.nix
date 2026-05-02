@@ -74,7 +74,7 @@
 
           # Packages (derivations only; excludes attrset packages like microsoft-office)
           # Also filter out packages not supported on the current system
-          # Includes overlay packages (e.g. discord, spotify, swiftformat) in addition to
+          # Includes overlay packages (e.g. discord, spotify) in addition to
           # packages defined in pkgs/
           packages =
             (lib.filterAttrs (
