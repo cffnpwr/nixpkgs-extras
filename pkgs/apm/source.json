@@ -1,0 +1,17 @@
+{
+  "version": "0.14.0",
+  "binaries": {
+    "aarch64-darwin": {
+      "url": "https://github.com/microsoft/apm/releases/download/v0.14.0/apm-darwin-arm64.tar.gz",
+      "hash": "sha256-O7i3zn1PxoZGv76WwYjjwMwni/4Gb2j7UuiSn9DaOTg="
+    },
+    "aarch64-linux": {
+      "url": "https://github.com/microsoft/apm/releases/download/v0.14.0/apm-linux-arm64.tar.gz",
+      "hash": "sha256-OoNAsChRqUdgpEnXMuX0F7K6RAlolHEwKvnFgBhRrXI="
+    },
+    "x86_64-linux": {
+      "url": "https://github.com/microsoft/apm/releases/download/v0.14.0/apm-linux-x86_64.tar.gz",
+      "hash": "sha256-XKeFPkuIWCctpyHh1oVIpsB495IEhymL75Ab1ucJp9E="
+    }
+  }
+}
