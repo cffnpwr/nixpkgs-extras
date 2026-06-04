@@ -1,17 +1,17 @@
 {
-  "version": "0.16.0",
+  "version": "0.18.0",
   "binaries": {
     "aarch64-darwin": {
-      "url": "https://github.com/microsoft/apm/releases/download/v0.16.0/apm-darwin-arm64.tar.gz",
-      "hash": "sha256-+ZDMoDlmWIB2IuA/I8ToAbH537+cBlA+Cud1FsUUxwE="
+      "url": "https://github.com/microsoft/apm/releases/download/v0.18.0/apm-darwin-arm64.tar.gz",
+      "hash": "sha256-aiJRHhZVnlTZb8wR+4WZ3Fwv+3nP8TZWCk1G1FtM0Jk="
     },
     "aarch64-linux": {
-      "url": "https://github.com/microsoft/apm/releases/download/v0.16.0/apm-linux-arm64.tar.gz",
-      "hash": "sha256-swyKSKR7qwQW30fz4BcHX7tEmZch4qdtStog6Z20mZk="
+      "url": "https://github.com/microsoft/apm/releases/download/v0.18.0/apm-linux-arm64.tar.gz",
+      "hash": "sha256-3ukbUw7CoogyzVLdo8MDujZHxyayyvkPL1MRjEp56ZM="
     },
     "x86_64-linux": {
-      "url": "https://github.com/microsoft/apm/releases/download/v0.16.0/apm-linux-x86_64.tar.gz",
-      "hash": "sha256-K2rOeSVzKKlZmyVp9HUeXjcuIa6tqekLQj1R35XyT00="
+      "url": "https://github.com/microsoft/apm/releases/download/v0.18.0/apm-linux-x86_64.tar.gz",
+      "hash": "sha256-lyTwlickO9WhrrfLB2FkaXGONtIN1EMNDm7lowRqsJo="
     }
   }
 }
